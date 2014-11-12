@@ -1,0 +1,10 @@
+Package: lssSimulate
+Type: Package
+Title: Simulation studies associated with libSpatialSEIR 
+Version: 0.1
+Date: 2014-11-12
+Author: Grant Brown 
+Maintainer: Grant Brown <grant.brown73@gmail.com>
+Description: Simulation studies, probably not super interesting to you at this point. 
+Depends: R(>= 3.0), spatialSEIR
+License: GPL-3
