@@ -161,11 +161,47 @@ buildSingleLocSimInstance = function(seed,
                          InitContainer,SamplingControl)
 
     return(list("model"=res,
-                "data"=simResults))
-    
+                "fileName"=outFileName,
+                "data"=simResults))    
+}
+
+runSimulation = function(model, N, batchSize = 100, targetRatio = 0.15, targetWidth = 0.05, proportionChange = 0.1, printAR = FALSE)
+{
+    tryCatch({
+        for (i in 1:(N/batchSize))
+        {
+            model$simulate(batchSize)
+            if (printAR)
+            {
+                model$printAcceptanceRates()
+            }
+            model$updateSamplingParameters(targetRatio, targetWidth, proportionChange)
+            # sleep to allow R to catch up and handle interrupts 
+            Sys.sleep(0.001)
+            cat(i*batchSize,"\n")
+        }}, 
+        interrupt = function(interrupt)
+        {
+            cat("Exiting...\n")
+    })
 }
 
 
+checkConvergence = function(fileName)
+{
+}
+
+runToConvergence(modelObject, itrsBeforeCheck)
+{
+    converged=FALSE
+    while (!converged)
+    {
+        runSimulation(modelObject$model, itrsBeforeCheck, batchSize=100)
+        converged = checkConvergence(modelObject$fileName)
+    } 
+}
+
 runSimulation1 = function()
 {
+
 }
