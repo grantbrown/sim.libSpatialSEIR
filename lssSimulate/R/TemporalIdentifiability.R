@@ -1,0 +1,2 @@
+library(spatialSEIR)
+library(coda)
