@@ -125,7 +125,8 @@ generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAway
 
     simResults = list("S_star"=S_star, "E_star" = E_star, "I_star" = I_star, "R_star" = R_star,
                 "S"=S, "E"=E, "I"=I, "R"=R, "S0"=S0,"E0"=E0,"I0"=I0,"R0"=R0,"X"=X, "Z"=Z,"X_prs"=X_prs,
-                "p_se"=p_se,"p_rs"=p_rs, "beta" = beta, "betaPrs"=betaPrs, "N"=N)
+                "p_se"=p_se,"p_rs"=p_rs, "beta" = beta, "betaPrs"=betaPrs, "N"=N, "gamma_ei"=gamma_ei, 
+                "gamma_ir"=gamma_ir)
 
 
 }
@@ -250,16 +251,83 @@ simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYe
         conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3])
     }
 
-    return(trueVals)
+    computeSim1Results(fileNames[1], fileNames[2], fileNames[3], simResults)
 }
 
-runSimulation1 = function(genSeed=123123, fitSeeds=c(812123,12301,5923))
+computeSim1Results = function(fileName1, fileName2, fileName3, trueData)
+{
+    contains = function(trueVal, variableName, summarylist)
+    {
+        sl = summarylist[[2]]
+        variableIdx = which(rownames(sl) == variableName)
+        bounds = sl[variableIdx,][c(1,5)]
+        trueVal < bounds[2] && trueVal > bounds[1]
+    }
+
+    getMean = function(variableName, summaryList)
+    {
+        sl = summaryList[[1]]
+        variableIdx = which(rownames(sl) == variableName)
+        sl[variableIdx, 1]
+    }
+
+    dat1 = read.csv(fileName1)
+    dat2 = read.csv(fileName2)
+    dat3 = read.csv(fileName3)
+
+    dat1 = dat1[floor(nrow(dat1)/2):nrow(dat1),]
+    dat2 = dat2[floor(nrow(dat2)/2):nrow(dat2),]
+    dat3 = dat3[floor(nrow(dat3)/2):nrow(dat3),]
+
+
+    iteration = dat1$Iteration
+    time = dat1$Time
+    
+
+    dat1 = as.mcmc(dat1[,1:(ncol(dat1) - 2)])
+    dat2 = as.mcmc(dat2[,1:(ncol(dat2) - 2)])
+    dat3 = as.mcmc(dat3[,1:(ncol(dat3) - 2)])
+    mcl = mcmc.list(dat1,dat2,dat3)
+
+    mcl.summary = summary(mcl)
+
+    trueBeta = trueData$beta
+    trueBetaPrs = trueData$betaPrs
+    trueGamma_ei = trueData$gamma_ei
+    trueGamma_ir = trueData$gamma_ir
+
+    betaNames = paste("BetaP_SE_", seq(0, (length(trueBeta)-1)), sep = "")
+    betaPrsNames = paste("BetaP_RS_", seq(0, (length(trueBetaPrs)-1)), sep = "")
+
+    allCompareVariableNames = c(betaNames, betaPrsNames, "gamma_ei", "gamma_ir")
+    allCompareVariableValues = c(trueBeta, trueBetaPrs, trueGamma_ei, trueGamma_ir)
+
+    outMatrix = matrix(0, nrow = length(allCompareVariableNames), ncol=3)
+    colnames(outMatrix) = c("CI_Contains", "Bias", "BiasPct")
+    rownames(outMatrix) = allCompareVariableNames
+    for (varNum in 1:length(allCompareVariableNames))
+    {
+        varName = allCompareVariableNames[varNum]
+        varVal = allCompareVariableValues[varNum]
+        bias = getMean(varName, mcl.summary) - varVal
+        outMatrix[varNum,] = c(contains(varVal, varName, mcl.summary), bias, bias/(abs(varVal))*100)
+    }
+    return(outMatrix)
+}
+
+runSimulation1 = function(cellIterations = 3, genSeed=123123, fitSeeds=c(812123,12301,5923))
 {                     
     cl = makeCluster(3, outfile = "err.txt")
     print("Cluster Created")
     clusterExport(cl, c("buildSingleLocSimInstance"))
     print("Variables Exported.") 
-    simResults = simulation1Kernel(cl, genSeed, fitSeeds, 100000, 3, 12, 0)
+
+    f = function(x)
+    {
+        simulation1Kernel(cl, genSeed, fitSeeds, 100000, 3, 12, 0)
+    }
+    simResults = lapply(seq(1, cellIterations), f)
+
     print("Results obtained")
     stopCluster(cl)
     return(simResults)
