@@ -1,10 +1,4 @@
-
-buildSingleLocSimInstance = function(seed,
-                                     outFileName,
-                                     population=10000,
-                                     NYears=3, 
-                                     TptPerYear=12,
-                                     ThrowAwayTpt=0)
+generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAwayTpt)
 {
     set.seed(seed)
     MaxTpt = NYears*TptPerYear
@@ -80,7 +74,7 @@ buildSingleLocSimInstance = function(seed,
     }
 
     if (ThrowAwayTpt != 0)
-        {
+    {
         S0 = S[,ThrowAwayTpt+1]
         E0 = E[,ThrowAwayTpt+1]
         I0 = I[,ThrowAwayTpt+1]
@@ -133,6 +127,18 @@ buildSingleLocSimInstance = function(seed,
                 "S"=S, "E"=E, "I"=I, "R"=R, "S0"=S0,"E0"=E0,"I0"=I0,"R0"=R0,"X"=X, "Z"=Z,"X_prs"=X_prs,
                 "p_se"=p_se,"p_rs"=p_rs, "beta" = beta, "betaPrs"=betaPrs, "N"=N)
 
+
+}
+
+buildSingleLocSimInstance = function(params) 
+{
+    library(spatialSEIR)
+    seed = params[[1]]
+    outFileName = params[[2]]
+    simResults = params[[3]]
+
+    set.seed(seed)
+
     DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(10,0.1))
 
     ExposureModel = buildExposureModel(simResults$X, simResults$Z, 
@@ -160,48 +166,101 @@ buildSingleLocSimInstance = function(seed,
     res = buildSEIRModel(outFileName,DataModel,ExposureModel,ReinfectionModel,DistanceModel,TransitionPriors,
                          InitContainer,SamplingControl)
 
+    res$setRandomSeed(seed+1)
+    res$simulate(10000)
+    res$compartmentSamplingMode = 16
+    res$useDecorrelation = 100
+    res$performHybridStep = 100
+
+    # Store the model object in the global namespace of the node - can't pass these between sessions
+    localModelObject <<- res
     return(list("model"=res,
-                "fileName"=outFileName,
-                "data"=simResults))    
+                "fileName"=outFileName))    
 }
 
-runSimulation = function(model, N, batchSize = 100, targetRatio = 0.15, targetWidth = 0.05, proportionChange = 0.1, printAR = FALSE)
+additionalIterations = function(params)
 {
-    tryCatch({
-        for (i in 1:(N/batchSize))
-        {
-            model$simulate(batchSize)
-            if (printAR)
-            {
-                model$printAcceptanceRates()
-            }
-            model$updateSamplingParameters(targetRatio, targetWidth, proportionChange)
-            # sleep to allow R to catch up and handle interrupts 
-            Sys.sleep(0.001)
-            cat(i*batchSize,"\n")
-        }}, 
-        interrupt = function(interrupt)
-        {
-            cat("Exiting...\n")
-    })
-}
-
-
-checkConvergence = function(fileName)
-{
-}
-
-runToConvergence(modelObject, itrsBeforeCheck)
-{
-    converged=FALSE
-    while (!converged)
+    
+    N = params[[1]]
+    batchSize = params[[2]]
+    targetRatio = params[[3]]
+    targetWidth=params[[4]]
+    proportionChange = params[[5]]
+    for (i in 1:(N/batchSize))
     {
-        runSimulation(modelObject$model, itrsBeforeCheck, batchSize=100)
-        converged = checkConvergence(modelObject$fileName)
-    } 
+        localModelObject$simulate(batchSize)
+        localModelObject$updateSamplingParameters(targetRatio, targetWidth, proportionChange)
+    }
 }
 
-runSimulation1 = function()
+checkConvergence = function(fileName1,fileName2,fileName3,maxVal=1.1,useUpper=FALSE,verbose=TRUE)
 {
+    dat1 = read.csv(fileName1)
+    dat2 = read.csv(fileName2)
+    dat3 = read.csv(fileName3)
+    
+    iteration = dat1$Iteration
 
+    dat1 = as.mcmc(dat1[,1:(ncol(dat1) - 2)])
+    dat2 = as.mcmc(dat2[,1:(ncol(dat2) - 2)])
+    dat3 = as.mcmc(dat3[,1:(ncol(dat3) - 2)])
+    mcl = mcmc.list(dat1,dat2,dat3)
+    diag = gelman.diag(mcl, multivariate=FALSE)
+    if (useUpper)
+    {
+        criterion = max(diag[[1]][,2])
+        maxParam = rownames(diag[[1]])[which.max(diag[[1]][,2])]
+    }
+    else
+    {
+        criterion = max(diag[[1]][,1])
+        maxParam = rownames(diag[[1]])[which.max(diag[[1]][,1])]
+    }
+    if (verbose)
+    {
+        cat(paste("Convergence Criterion: ", round(criterion, 2), 
+                  ", param: ", maxParam, "\n", sep = ""))
+    }
+    criterion < maxVal
+}
+
+
+
+simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYear, ThrowAwayTpt)
+{
+    #simResults = generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAwayTpt)
+    simResults = generateSingleLocData(genSeed, population, NYears, TptPerYear, ThrowAwayTpt)
+
+    fileNames = c("sim1_1.txt", "sim1_2.txt", "sim1_3.txt")
+    paramsList = list(list(seed=fitSeeds[1], outFileName = fileNames[1], simResults),
+                      list(seed=fitSeeds[2], outFileName = fileNames[2], simResults),
+                      list(seed=fitSeeds[3], outFileName = fileNames[3], simResults)
+                      )
+
+    trueVals = parLapply(cl, paramsList, buildSingleLocSimInstance)
+
+    iterationParams = list(list(20000, 100, 0.15, 0.05, 0.1),
+                           list(20000, 100, 0.15, 0.05, 0.1),
+                           list(20000, 100, 0.15, 0.05, 0.1))
+    conv = FALSE
+    while (!conv)
+    {
+        cat("Not converged, adding iterations...\n")
+        parLapply(cl, iterationParams, additionalIterations)
+        conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3])
+    }
+
+    return(trueVals)
+}
+
+runSimulation1 = function(genSeed=123123, fitSeeds=c(812123,12301,5923))
+{                     
+    cl = makeCluster(3, outfile = "err.txt")
+    print("Cluster Created")
+    clusterExport(cl, c("buildSingleLocSimInstance"))
+    print("Variables Exported.") 
+    simResults = simulation1Kernel(cl, genSeed, fitSeeds, 100000, 3, 12, 0)
+    print("Results obtained")
+    stopCluster(cl)
+    return(simResults)
 }
