@@ -162,8 +162,12 @@ buildSingleLocSimInstance = function(params)
                                                           ))
     DistanceModel = buildDistanceModel(list(matrix(0)))
     TransitionPriors = buildTransitionPriorsManually(2300,1000,2300,1000)
-    InitContainer = buildInitialValueContainer(simResults$I_star, simResults$N, S0 = simResults$N[1]-100, 
-                                               I0 = 100, E0 = 0)
+
+    I0 = max(simResults$I_star[1], simResults$I_star[2], 100)
+    E0 = I0
+    S0 = simResults$N[1] - I0 - E0
+    InitContainer = buildInitialValueContainer(simResults$I_star, simResults$N, 
+                                               S0 = S0,, I0 = I0, E0 = E0)
     res = buildSEIRModel(outFileName,DataModel,ExposureModel,ReinfectionModel,DistanceModel,TransitionPriors,
                          InitContainer,SamplingControl)
 
@@ -312,23 +316,41 @@ computeSim1Results = function(fileName1, fileName2, fileName3, trueData)
         bias = getMean(varName, mcl.summary) - varVal
         outMatrix[varNum,] = c(contains(varVal, varName, mcl.summary), bias, bias/(abs(varVal))*100)
     }
-    return(outMatrix)
+    return(list("data"=outMatrix,"iterations"=max(iteration), "time"=max(time)))
 }
 
-runSimulation1 = function(cellIterations = 3, genSeed=123123, fitSeeds=c(812123,12301,5923))
+runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0, 6, 12, 18, 24),
+                          genSeed=123123, fitSeeds=c(812123,12301,5923))
 {                     
     cl = makeCluster(3, outfile = "err.txt")
     print("Cluster Created")
     clusterExport(cl, c("buildSingleLocSimInstance"))
     print("Variables Exported.") 
-
-    f = function(x)
+ 
+    for (ThrowAwayTpt in ThrowAwayTpts)
     {
-        simulation1Kernel(cl, genSeed, fitSeeds, 100000, 3, 12, 0)
+        f = function(genSeed)
+        {
+            simulation1Kernel(cl, genSeed, fitSeeds, 100000, 3, 12, ThrowAwayTpt)
+        }
+        simResults = lapply(genSeed + seq(1, cellIterations), f)
+        biasResults = simResults[[1]]$data
+        timeResult = simResults[[1]]$time
+        iterationResult = simResults[[1]]$iterations
+        for (i in 2:length(simResults))
+        {
+            biasResults = biasResults + simResults[[i]]$data
+            timeResult = timeResult + simResults[[i]]$time
+            iterationResult = iterationResult + simResults[[i]]$iterations
+        }
+        biasResults = biasResults/length(simResults)
+        timeResult = timeResult/length(simResults)
+        iterationResult = iterationResult/length(simResults)
+        outData = cbind(biasResults, timeResult, iterationResult, ThrowAwayTpt)
+        colnames(outData) = c("Coverage", "AvgBias", "AvgBiasPct", "AvgTime","AvgIterations", "ThrowAwayTpt")
+        write.csv(outData, file=paste("./sim1_results_", ThrowAwayTpt, ".txt",sep=""))
     }
-    simResults = lapply(seq(1, cellIterations), f)
-
     print("Results obtained")
     stopCluster(cl)
-    return(simResults)
+    TRUE
 }
