@@ -140,7 +140,7 @@ buildSingleLocSimInstance = function(params)
 
     set.seed(seed)
 
-    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(2,0.1))
+    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(1000,1000))
 
     ExposureModel = buildExposureModel(simResults$X, simResults$Z, 
                                        beta = c(2, rep(0, ((length(simResults$beta))-1))), betaPriorPrecision = 0.01)
@@ -172,10 +172,11 @@ buildSingleLocSimInstance = function(params)
                          InitContainer,SamplingControl)
 
     res$setRandomSeed(seed+1)
+    res$setTrace(0)
     res$simulate(10000)
-    res$compartmentSamplingMode = 14
-    res$useDecorrelation = 10
-    res$performHybridStep = 10
+    res$compartmentSamplingMode = 16
+    res$useDecorrelation = 25
+    res$performHybridStep = 25
 
     # Store the model object in the global namespace of the node - can't pass these between sessions
     localModelObject <<- res
@@ -198,7 +199,7 @@ additionalIterations = function(params)
     }
 }
 
-checkConvergence = function(fileName1,fileName2,fileName3,maxVal=1.1,useUpper=FALSE,verbose=TRUE)
+checkConvergence = function(fileName1,fileName2,fileName3,maxVal=1.02,useUpper=FALSE,verbose=TRUE)
 {
     dat1 = read.csv(fileName1)
     dat2 = read.csv(fileName2)
@@ -206,9 +207,12 @@ checkConvergence = function(fileName1,fileName2,fileName3,maxVal=1.1,useUpper=FA
     
     iteration = dat1$Iteration
 
-    dat1 = as.mcmc(dat1[,1:(ncol(dat1) - 2)])
-    dat2 = as.mcmc(dat2[,1:(ncol(dat2) - 2)])
-    dat3 = as.mcmc(dat3[,1:(ncol(dat3) - 2)])
+
+    varNames = names(dat1)
+    lastVar = which(varNames == "gamma_ir") 
+    dat1 = as.mcmc(dat1[,1:lastVar])
+    dat2 = as.mcmc(dat2[,1:lastVar])
+    dat3 = as.mcmc(dat3[,1:lastVar])
     mcl = mcmc.list(dat1,dat2,dat3)
     diag = gelman.diag(mcl, multivariate=FALSE)
     if (useUpper)
