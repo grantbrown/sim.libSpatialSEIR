@@ -140,13 +140,13 @@ buildSingleLocSimInstance = function(params)
 
     set.seed(seed)
 
-    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(10,0.1))
+    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(2,0.1))
 
     ExposureModel = buildExposureModel(simResults$X, simResults$Z, 
-                                       beta = c(2, rep(0, ((length(simResults$beta))-1))), betaPriorPrecision = 0.1)
+                                       beta = c(2, rep(0, ((length(simResults$beta))-1))), betaPriorPrecision = 0.01)
     ReinfectionModel = buildReinfectionModel("SEIRS", X_prs = simResults$X_prs, 
                                              betaPrs = -c(4, rep(0,(length(simResults$betaPrs)-1))), 
-                                             priorPrecision = 0.1)
+                                             priorPrecision = 0.01)
     SamplingControl = buildSamplingControl(iterationStride=1000,
                                            sliceWidths = c(0.26,  # S_star
                                                            0.1,  # E_star
@@ -173,9 +173,9 @@ buildSingleLocSimInstance = function(params)
 
     res$setRandomSeed(seed+1)
     res$simulate(10000)
-    res$compartmentSamplingMode = 16
-    res$useDecorrelation = 100
-    res$performHybridStep = 100
+    res$compartmentSamplingMode = 14
+    res$useDecorrelation = 10
+    res$performHybridStep = 10
 
     # Store the model object in the global namespace of the node - can't pass these between sessions
     localModelObject <<- res
@@ -337,11 +337,14 @@ runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0, 6, 12, 18, 24)
         biasResults = simResults[[1]]$data
         timeResult = simResults[[1]]$time
         iterationResult = simResults[[1]]$iterations
-        for (i in 2:length(simResults))
+        if (length(simResults) > 1)
         {
-            biasResults = biasResults + simResults[[i]]$data
-            timeResult = timeResult + simResults[[i]]$time
-            iterationResult = iterationResult + simResults[[i]]$iterations
+            for (i in 2:length(simResults))
+            {
+                biasResults = biasResults + simResults[[i]]$data
+                timeResult = timeResult + simResults[[i]]$time
+                iterationResult = iterationResult + simResults[[i]]$iterations
+            }
         }
         biasResults = biasResults/length(simResults)
         timeResult = timeResult/length(simResults)
