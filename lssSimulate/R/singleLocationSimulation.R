@@ -1,6 +1,12 @@
 generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAwayTpt)
 {
     set.seed(seed)
+
+    if (ThrowAwayTpt != 0)
+    {
+        stop("Don't do that, this part is currently broken. TODO: Fix this.")
+    }
+
     MaxTpt = NYears*TptPerYear
     N=population
     X = matrix(1, ncol = 1)
@@ -73,14 +79,6 @@ generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAway
         }
     }
 
-    if (ThrowAwayTpt != 0)
-    {
-        S0 = S[,ThrowAwayTpt+1]
-        E0 = E[,ThrowAwayTpt+1]
-        I0 = I[,ThrowAwayTpt+1]
-        R0 = R[,ThrowAwayTpt+1]
-    }
-
     S_star = S_star[,(ThrowAwayTpt + 1):ncol(S_star), drop = FALSE]
     E_star = E_star[,(ThrowAwayTpt + 1):ncol(E_star), drop = FALSE]
     I_star = I_star[,(ThrowAwayTpt + 1):ncol(I_star), drop = FALSE]
@@ -127,8 +125,8 @@ generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAway
                 "S"=S, "E"=E, "I"=I, "R"=R, "S0"=S0,"E0"=E0,"I0"=I0,"R0"=R0,"X"=X, "Z"=Z,"X_prs"=X_prs,
                 "p_se"=p_se,"p_rs"=p_rs, "beta" = beta, "betaPrs"=betaPrs, "N"=N, "gamma_ei"=gamma_ei, 
                 "gamma_ir"=gamma_ir)
-
-
+    save(simResults, file="./sim1_truedata.Robj")
+    simResults
 }
 
 buildSingleLocSimInstance = function(params) 
@@ -143,10 +141,10 @@ buildSingleLocSimInstance = function(params)
     DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(1000,1000))
 
     ExposureModel = buildExposureModel(simResults$X, simResults$Z, 
-                                       beta = c(2, rep(0, ((length(simResults$beta))-1))), betaPriorPrecision = 0.01)
+                                       beta = c(2, rep(0, ((length(simResults$beta))-1))), betaPriorPrecision = 0.000001)
     ReinfectionModel = buildReinfectionModel("SEIRS", X_prs = simResults$X_prs, 
                                              betaPrs = -c(4, rep(0,(length(simResults$betaPrs)-1))), 
-                                             priorPrecision = 0.01)
+                                             priorPrecision = 0.000001)
     SamplingControl = buildSamplingControl(iterationStride=1000,
                                            sliceWidths = c(0.26,  # S_star
                                                            0.1,  # E_star
@@ -173,8 +171,20 @@ buildSingleLocSimInstance = function(params)
 
     res$setRandomSeed(seed+1)
     res$setTrace(0)
-    res$simulate(10000)
-    res$compartmentSamplingMode = 16
+    res$compartmentSamplingMode = 1
+    # Burn in tuning parameters
+    for (i in 1:(100))
+    {
+        res$simulate(10)
+        res$updateSamplingParameters(0.2, 0.05, 0.01)
+    }
+    for (i in 1:(50))
+    {
+        res$simulate(100)
+        res$updateSamplingParameters(0.2, 0.05, 0.01)
+    }
+    res$simulate(1000)
+    res$compartmentSamplingMode = 17
     res$useDecorrelation = 25
     res$performHybridStep = 25
 
