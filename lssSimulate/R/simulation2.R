@@ -88,7 +88,7 @@ simulation2Kernel = function(cl, genSeed, fitSeeds, ThrowAwayTpt)
         conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3])
     }
 
-    computeSim1Results(fileNames[1], fileNames[2], fileNames[3], simResults)
+    computeSim2Results(fileNames[1], fileNames[2], fileNames[3], simResults)
 }
 
 buildSingleLocSimInstance2 = function(params) 
@@ -159,8 +159,6 @@ buildSingleLocSimInstance2 = function(params)
 }
 
 
-
-# Not Updated
 computeSim2Results = function(fileName1, fileName2, fileName3, trueData)
 {
     contains = function(trueVal, variableName, summarylist)
@@ -281,7 +279,7 @@ computeSim2Results = function(fileName1, fileName2, fileName3, trueData)
                 "time"=max(time)))
 }
 
-# Not Updated
+
 runSimulation2 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
                           genSeed=123123, fitSeeds=c(812123,12301,5923))
 {                     
