@@ -1,133 +1,194 @@
-generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAwayTpt)
+#generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAwayTpt)
+generateData = function(seed, 
+                        nTpt,
+                        S0,
+                        E0,
+                        I0,
+                        R0,
+                        timeIndex,
+                        beta_SE,
+                        beta_RS,
+                        distMatList,
+                        rho,
+                        X,
+                        Z,
+                        X_RS,
+                        gamma_ei,
+                        gamma_ir,
+                        effectiveTransitionSampleSize
+                        )
 {
     set.seed(seed)
-
-    if (ThrowAwayTpt != 0)
+    
+    if (nTpt > nrow(Z)/nrow(X))
     {
-        stop("Don't do that, this part is currently broken. TODO: Fix this.")
+        stop(paste("Not enough information provided for ", nTpt, " time points.\n", sep = ""))
     }
+    # Make a big matrix out of X and Z
+    bigX_SE = cbind(X[rep(c(1:nrow(X)), nrow(Z)/nrow(X)),], Z)
+    bigX_SE = bigX_SE[(rep(1:nTpt, nrow(X)) + rep(0:(nrow(X)-1), 
+                            each=nrow(X))*(nrow(Z)/nrow(X))),,drop=FALSE]
+    Z = Z[(rep(1:nTpt, nrow(X)) + rep(0:(nrow(X)-1), 
+                            each=nrow(X))*(nrow(Z)/nrow(X))),,drop=FALSE]
 
-    MaxTpt = NYears*TptPerYear
-    N=population
-    X = matrix(1, ncol = 1)
-    Z = cbind(seq(1,NYears*TptPerYear), sin(seq(1,NYears*TptPerYear)/TptPerYear*2*pi))
-    X_prs = cbind(1, 
-                  sin((1:MaxTpt)/TptPerYear*2*pi), 
-                  cos((6+1:MaxTpt)/TptPerYear*2*pi))
 
-    trueBetaSEFixed = c(0.5)
-    trueBetaSEVarying = c(0.002, .5)
-    trueGamma = rep(0.0, MaxTpt)  
-
-    eta_se = as.numeric((X %*% trueBetaSEFixed)) + (Z %*% trueBetaSEVarying)
-    p_se = numeric(MaxTpt)
-    gamma_ei = 2.3
-    gamma_ir = 2.3
-
-    p_ei = 1-exp(-gamma_ei)
-    p_ir = 1-exp(-gamma_ir)
-
-    trueBetaRS = c(-2.5, 1, -0.25) 
-    eta_rs = X_prs %*% trueBetaRS
-    p_rs = 1-exp(-exp(eta_rs))
-
-    E0 = 0
-    I0 = floor(0.001*N)
-    R0 = floor(0.001*N) 
-    S0 = N-E0-I0-R0
-
-    S = matrix(0, nrow = 1, ncol = MaxTpt)
-    E = matrix(0, nrow = 1, ncol = MaxTpt)
-    I = matrix(0, nrow = 1, ncol = MaxTpt)
-    R = matrix(0, nrow = 1, ncol = MaxTpt)
-    S_star = matrix(0, nrow = 1, ncol = MaxTpt)
-    E_star = matrix(0, nrow = 1, ncol = MaxTpt)
-    I_star = matrix(0, nrow = 1, ncol = MaxTpt)
-    R_star = matrix(0, nrow = 1, ncol = MaxTpt)
-
-    for (i in 1:MaxTpt)
+    # Calculate temporal offsets. 
+    uncumulate = function(x)
     {
-        if (i == 1)
+        out = c(x[2:length(x)]-x[1:(length(x)-1)])
+        ifelse(out >= 0, out, 0)
+    }
+    if (length(timeIndex) - nrow(X_RS) != 1)
+    {
+        stop("ERROR: timeIndex should be one longer than the number of time points in the study.")
+    }
+    offsets = uncumulate(timeIndex)[1:nTpt]
+
+    # Calculate linear predictor for the intensity process. 
+    eta_SE = exp(matrix((bigX_SE %*% beta_SE), ncol = nrow(X)))
+
+    # Calculate linear predictor for reinfection process.
+    X_RS = X_RS[1:nTpt,,drop=FALSE]
+    eta_RS = exp(X_RS %*% beta_RS)
+
+    # Calculate p_EI and p_IR
+    p_EI = 1-exp(-gamma_ei*offsets) 
+    p_IR = 1-exp(-gamma_ir*offsets)
+
+
+    # p_RS
+    p_RS = 1-exp(-offsets*(eta_RS))
+
+    # Allocate compartments
+    S_star = E_star = I_star = R_star = S = E = I = R = matrix(0, nrow = nTpt, ncol = nrow(X))
+
+    # Declare N
+    N = matrix(S0+E0+I0+R0, ncol = nrow(X), nrow = length(offsets))
+
+    # Run Simulation 
+    offsetMatrix = matrix(offsets, nrow = length(offsets), ncol = nrow(X))
+    S[1,] = S0
+    E[1,] = E0
+    I[1,] = I0
+    R[1,] = R0
+
+    p_SE = eta_SE
+    for (i in 1:(nTpt))
+    {
+        # Calculate p_SE
+        if (nrow(X) > 1)
         {
-            S[i] = S0
-            E[i] = E0
-            I[i] = I0
-            R[i] = R0
-
-            etaVal = -(I[i]/N)*exp(eta_se[i]) - trueGamma[i]
-            p_se[i] = 1-exp(etaVal)
-
-            S_star[i] = rbinom(1, R[i], p_rs[i])
-            E_star[i] = rbinom(1, S[i], p_se[i])
-            I_star[i] = rbinom(1, E[i], p_ei)
-            R_star[i] = rbinom(1, I[i], p_ir)
+            # Case 1: spatial
+            p_SE[i,] = p_SE[i,]*(I[i,]/N[i,]) 
+            for (j in 1:length(distMatList))
+            {
+               p_SE[i,] = p_SE[i,] + rho[[j]]*distMatList[[j]] %*% (eta_SE[i,]*(I[i,]/N[i,]))
+            }
+            p_SE[i,] = 1-exp(-offsetMatrix[i,]*p_SE[i,])
         }
         else
         {
-            S[i] = S[i-1] + S_star[i-1] - E_star[i-1]
-            E[i] = E[i-1] + E_star[i-1] - I_star[i-1]
-            I[i] = I[i-1] + I_star[i-1] - R_star[i-1]
-            R[i] = R[i-1] + R_star[i-1] - S_star[i-1]
+            # Case 2: single location
+            p_SE[i,] = (p_SE[i,]*(I[i,]/N[i,]))
+            p_SE[i,] = 1-exp(-offsetMatrix[i,]*p_SE[i,])
+        }
 
-            etaVal = -(I[i]/N)*exp(eta_se[i]) - trueGamma[i]
-            p_se[i] = 1-exp(etaVal)
+        S_star[i,] = rbinom(rep(1, ncol(S)), R[i,], rep(p_RS[i], ncol(S)))
+        E_star[i,] = rbinom(rep(1, ncol(S)), S[i,], p_SE[i,])
+        I_star[i,] = rbinom(rep(1, ncol(S)), E[i,], rep(p_EI[i], ncol(S)))
+        R_star[i,] = rbinom(rep(1, ncol(S)), I[i,], rep(p_IR[i], ncol(S)))
 
-            S_star[i] = rbinom(1, R[i], p_rs[i])
-            E_star[i] = rbinom(1, S[i], p_se[i])
-            I_star[i] = rbinom(1, E[i], p_ei)
-            R_star[i] = rbinom(1, I[i], p_ir)
+        if (i < nTpt)
+        {
+            S[i+1,] = S[i,] + S_star[i,] - E_star[i,] 
+            E[i+1,] = E[i,] + E_star[i,] - I_star[i,]
+            I[i+1,] = I[i,] + I_star[i,] - R_star[i,]
+            R[i+1,] = R[i,] + R_star[i,] - S_star[i,]
         }
     }
 
-    S_star = S_star[,(ThrowAwayTpt + 1):ncol(S_star), drop = FALSE]
-    E_star = E_star[,(ThrowAwayTpt + 1):ncol(E_star), drop = FALSE]
-    I_star = I_star[,(ThrowAwayTpt + 1):ncol(I_star), drop = FALSE]
-    R_star = R_star[,(ThrowAwayTpt + 1):ncol(R_star), drop = FALSE]
-
-    S = S[,(ThrowAwayTpt + 1):ncol(S), drop = FALSE]
-    E = E[,(ThrowAwayTpt + 1):ncol(E), drop = FALSE]
-    I = I[,(ThrowAwayTpt + 1):ncol(I), drop = FALSE]
-    R = R[,(ThrowAwayTpt + 1):ncol(R), drop = FALSE]
-
-    Z = Z[(1+ThrowAwayTpt*nrow(S)):nrow(Z),]
-    X_prs = X_prs[(ThrowAwayTpt + 1):nrow(X_prs),]
-
-    # Transpose Everything to have TXP
-
-    S0 = t(S0)
-    E0 = t(E0)
-    I0 = t(I0)
-    R0 = t(R0)
-
-    S_star = t(S_star)
-    E_star = t(E_star)
-    I_star = t(I_star)
-    R_star = t(R_star)
-
-    S = t(S)
-    E = t(E)
-    I = t(I)
-    R = t(R)
-
-    xDim = dim(X)
-    zDim = dim(Z)
-    xPrsDim = dim(X_prs)
-    compMatDim = c(nrow(S), ncol(S))
-
-    p_rs = p_rs[(ThrowAwayTpt +1):length(p_rs)]
-    p_se = p_se[(ThrowAwayTpt +1):length(p_se)]
-    eta_se = eta_se[(ThrowAwayTpt +1):length(eta_se)]
-    beta = c(trueBetaSEFixed, trueBetaSEVarying) 
-    betaPrs = trueBetaRS
-    N = matrix(N, nrow = nrow(S), ncol = ncol(S))
-
-    simResults = list("S_star"=S_star, "E_star" = E_star, "I_star" = I_star, "R_star" = R_star,
-                "S"=S, "E"=E, "I"=I, "R"=R, "S0"=S0,"E0"=E0,"I0"=I0,"R0"=R0,"X"=X, "Z"=Z,"X_prs"=X_prs,
-                "p_se"=p_se,"p_rs"=p_rs, "beta" = beta, "betaPrs"=betaPrs, "N"=N, "gamma_ei"=gamma_ei, 
-                "gamma_ir"=gamma_ir)
-    save(simResults, file="./sim1_truedata.Robj")
-    simResults
+    return(list(S_star=S_star,
+                E_star=E_star,
+                I_star=I_star,
+                R_star=R_star,
+                S=S,
+                I=I,
+                E=E,
+                R=R,
+                S0=S0,
+                E0=E0,
+                I0=I0,
+                R0=R0,
+                N =N, 
+                X=X,
+                Z=Z,
+                X_RS=X_RS,
+                beta_SE=beta_SE,
+                beta_RS=beta_RS,
+                gamma_ei=gamma_ei,
+                gamma_ir=gamma_ir,
+                p_SE=p_SE,
+                p_EI=p_EI,
+                p_IR=p_IR,
+                p_RS=p_RS,
+                effectiveTransitionSampleSize=effectiveTransitionSampleSize
+                ))
 }
+
+generateSingleLocData = function(seed, 
+                                 population, 
+                                 NYears, 
+                                 TptPerYear, 
+                                 ThrowAwayTpt,
+                                 beta_SE=c(0.5, 0.002, 0.5),
+                                 beta_RS=c(-2.5))
+{
+    set.seed(seed)
+    E0 = 0  
+    I0 = floor(0.001*population)
+    R0 = I0
+    S0 = population - R0 - E0 - I0
+
+    maxTpt = NYears*TptPerYear
+    nTpt = maxTpt - ThrowAwayTpt
+    
+    X = matrix(1)
+    #Z = matrix(sin(2*pi*((1:maxTpt)/TptPerYear)), ncol = 1) 
+    Z = cbind(seq(1, maxTpt), sin(seq(1, maxTpt)/TptPerYear*2*pi))
+
+    X_RS = matrix(1, nrow = maxTpt)
+
+
+
+    distMatList = -1   
+    rho = -1
+    gamma_ei = 2.3
+    gamma_ir = 2.3
+    
+    effectiveTransitionSampleSize = 100000
+    timeIndex = 0:maxTpt
+
+    generateData(seed + 1, 
+                 nTpt,
+                 S0,
+                 E0,
+                 I0,
+                 R0,
+                 timeIndex,
+                 beta_SE,
+                 beta_RS,
+                 distMatList,
+                 rho,
+                 X,
+                 Z,
+                 X_RS,
+                 gamma_ei,
+                 gamma_ir,
+                 effectiveTransitionSampleSize
+                 )
+
+}
+
 
 buildSingleLocSimInstance = function(params) 
 {
@@ -138,13 +199,16 @@ buildSingleLocSimInstance = function(params)
 
     set.seed(seed)
 
-    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(1000,1000))
+    #DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(10000,10000))
+    DataModel = buildDataModel(simResults$I_star, type = "identity")
 
+
+    priorBetaIntercept = log(mean(-log(1-(simResults$I_star/(simResults$N))))) 
     ExposureModel = buildExposureModel(simResults$X, simResults$Z, 
-                                       beta = c(2, rep(0, ((length(simResults$beta))-1))), betaPriorPrecision = 0.000001)
-    ReinfectionModel = buildReinfectionModel("SEIRS", X_prs = simResults$X_prs, 
-                                             betaPrs = -c(4, rep(0,(length(simResults$betaPrs)-1))), 
-                                             priorPrecision = 0.000001)
+                                       beta = c(priorBetaIntercept, rep(0, ((length(simResults$beta_SE))-1))), betaPriorPrecision = 0.1)
+    ReinfectionModel = buildReinfectionModel("SEIRS", X_prs = simResults$X_RS, 
+                                             betaPrs = -c(1, rep(0,(length(simResults$beta_RS)-1))), 
+                                             priorPrecision = 0.1)
     SamplingControl = buildSamplingControl(iterationStride=1000,
                                            sliceWidths = c(0.26,  # S_star
                                                            0.1,  # E_star
@@ -159,7 +223,9 @@ buildSingleLocSimInstance = function(params)
                                                            0.01 # phi
                                                           ))
     DistanceModel = buildDistanceModel(list(matrix(0)))
-    TransitionPriors = buildTransitionPriorsManually(2300,1000,2300,1000)
+    TransitionPriors = buildTransitionPriorsFromProbabilities(1-exp(-simResults$gamma_ei), 
+                                                             1-exp(-simResults$gamma_ir), simResults$effectiveTransitionSampleSize,
+                                                             simResults$effectiveTransitionSampleSize) 
 
     I0 = max(simResults$I_star[1], simResults$I_star[2], 100)
     E0 = I0
@@ -169,24 +235,22 @@ buildSingleLocSimInstance = function(params)
     res = buildSEIRModel(outFileName,DataModel,ExposureModel,ReinfectionModel,DistanceModel,TransitionPriors,
                          InitContainer,SamplingControl)
 
-    res$setRandomSeed(seed+1)
+    res$setRandomSeed(seed)
     res$setTrace(0)
-    res$compartmentSamplingMode = 1
+    res$compartmentSamplingMode = 17
+    res$useDecorrelation = 10
+    res$performHybridStep = 10
     # Burn in tuning parameters
-    for (i in 1:(100))
+    for (i in 1:(200))
     {
         res$simulate(10)
         res$updateSamplingParameters(0.2, 0.05, 0.01)
     }
-    for (i in 1:(50))
+    for (i in 1:(20))
     {
         res$simulate(100)
         res$updateSamplingParameters(0.2, 0.05, 0.01)
     }
-    res$simulate(1000)
-    res$compartmentSamplingMode = 17
-    res$useDecorrelation = 25
-    res$performHybridStep = 25
 
     # Store the model object in the global namespace of the node - can't pass these between sessions
     localModelObject <<- res
@@ -205,11 +269,11 @@ additionalIterations = function(params)
     for (i in 1:(N/batchSize))
     {
         localModelObject$simulate(batchSize)
-        localModelObject$updateSamplingParameters(targetRatio, targetWidth, proportionChange)
+        #localModelObject$updateSamplingParameters(targetRatio, targetWidth, proportionChange)
     }
 }
 
-checkConvergence = function(fileName1,fileName2,fileName3,maxVal=1.02,useUpper=FALSE,verbose=TRUE)
+checkConvergence = function(fileName1,fileName2,fileName3,maxVal=2,useUpper=FALSE,verbose=TRUE)
 {
     dat1 = read.csv(fileName1)
     dat2 = read.csv(fileName2)
@@ -247,7 +311,7 @@ checkConvergence = function(fileName1,fileName2,fileName3,maxVal=1.02,useUpper=F
 
 simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYear, ThrowAwayTpt)
 {
-    #simResults = generateSingleLocData = function(seed, population, NYears, TptPerYear, ThrowAwayTpt)
+    #TODO: Vary starting linear predictor parameters on each iteration 
     simResults = generateSingleLocData(genSeed, population, NYears, TptPerYear, ThrowAwayTpt)
 
     fileNames = c("sim1_1.txt", "sim1_2.txt", "sim1_3.txt")
@@ -258,9 +322,9 @@ simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYe
 
     trueVals = parLapply(cl, paramsList, buildSingleLocSimInstance)
 
-    iterationParams = list(list(20000, 100, 0.15, 0.05, 0.1),
-                           list(20000, 100, 0.15, 0.05, 0.1),
-                           list(20000, 100, 0.15, 0.05, 0.1))
+    iterationParams = list(list(200000, 1000, 0.2, 0.05, 0.1),
+                           list(200000, 1000, 0.2, 0.05, 0.1),
+                           list(200000, 1000, 0.2, 0.05, 0.1))
     conv = FALSE
     while (!conv)
     {
@@ -276,6 +340,7 @@ computeSim1Results = function(fileName1, fileName2, fileName3, trueData)
 {
     contains = function(trueVal, variableName, summarylist)
     {
+        cat(paste("Checking for: ", variableName, "\n", sep = ""))
         sl = summarylist[[2]]
         variableIdx = which(rownames(sl) == variableName)
         bounds = sl[variableIdx,][c(1,5)]
@@ -293,24 +358,23 @@ computeSim1Results = function(fileName1, fileName2, fileName3, trueData)
     dat2 = read.csv(fileName2)
     dat3 = read.csv(fileName3)
 
-    dat1 = dat1[floor(nrow(dat1)/2):nrow(dat1),]
-    dat2 = dat2[floor(nrow(dat2)/2):nrow(dat2),]
-    dat3 = dat3[floor(nrow(dat3)/2):nrow(dat3),]
-
+    dat1_full = dat1[floor(nrow(dat1)/2):nrow(dat1),]
+    dat2_full = dat2[floor(nrow(dat2)/2):nrow(dat2),]
+    dat3_full = dat3[floor(nrow(dat3)/2):nrow(dat3),]
 
     iteration = dat1$Iteration
     time = dat1$Time
     
-
-    dat1 = as.mcmc(dat1[,1:(ncol(dat1) - 2)])
-    dat2 = as.mcmc(dat2[,1:(ncol(dat2) - 2)])
-    dat3 = as.mcmc(dat3[,1:(ncol(dat3) - 2)])
+    dat1 = as.mcmc(dat1_full[,1:(ncol(dat1_full) - 2)])
+    dat2 = as.mcmc(dat2_full[,1:(ncol(dat2_full) - 2)])
+    dat3 = as.mcmc(dat3_full[,1:(ncol(dat3_full) - 2)])
     mcl = mcmc.list(dat1,dat2,dat3)
 
     mcl.summary = summary(mcl)
 
-    trueBeta = trueData$beta
-    trueBetaPrs = trueData$betaPrs
+    # Calculate parameter summaries
+    trueBeta = trueData$beta_SE
+    trueBetaPrs = trueData$beta_RS
     trueGamma_ei = trueData$gamma_ei
     trueGamma_ir = trueData$gamma_ir
 
@@ -320,20 +384,81 @@ computeSim1Results = function(fileName1, fileName2, fileName3, trueData)
     allCompareVariableNames = c(betaNames, betaPrsNames, "gamma_ei", "gamma_ir")
     allCompareVariableValues = c(trueBeta, trueBetaPrs, trueGamma_ei, trueGamma_ir)
 
-    outMatrix = matrix(0, nrow = length(allCompareVariableNames), ncol=3)
-    colnames(outMatrix) = c("CI_Contains", "Bias", "BiasPct")
-    rownames(outMatrix) = allCompareVariableNames
+    resultsMatrix1 = matrix(0, nrow = length(allCompareVariableNames), ncol=5)
+    colnames(resultsMatrix1) = c("CI_Contains", "CI_contains_0", "SignMatches","Bias", "BiasPct")
+    rownames(resultsMatrix1) = allCompareVariableNames
     for (varNum in 1:length(allCompareVariableNames))
     {
         varName = allCompareVariableNames[varNum]
         varVal = allCompareVariableValues[varNum]
         bias = getMean(varName, mcl.summary) - varVal
-        outMatrix[varNum,] = c(contains(varVal, varName, mcl.summary), bias, bias/(abs(varVal))*100)
+        pctBias = bias/(abs(varVal))*100
+        CIcontains = contains(varVal, varName, mcl.summary)
+        CIcontainsZero = contains(0, varName, mcl.summary)
+        estimateSignMatches = sign(varVal) ==  sign(getMean(varName, mcl.summary))
+        resultsMatrix1[varNum,] = c(CIcontains, CIcontainsZero, estimateSignMatches, bias, pctBias)
     }
-    return(list("data"=outMatrix,"iterations"=max(iteration), "time"=max(time)))
+
+    # calculate estimation performance
+    print("Process Compartments") 
+    tpts = nrow(trueData$X_RS) 
+    Snames = paste("S_0_", seq(0,  (tpts-1)), sep = "")
+    Enames = paste("E_0_", seq(0,  (tpts-1)), sep = "")
+    Inames = paste("I_0_", seq(0,  (tpts-1)), sep = "")
+    Rnames = paste("R_0_", seq(0,  (tpts-1)), sep = "")
+
+    Smatrix = matrix(0, ncol = 3, nrow = length(Snames))
+    rownames(Smatrix) = Snames
+    colnames(Smatrix) = c("CI_Contains", "Bias", "BiasPct")
+
+    Ematrix = matrix(0, ncol = 3, nrow = length(Enames))
+    rownames(Ematrix) = Enames
+    colnames(Ematrix) = c("CI_Contains", "Bias", "BiasPct")
+
+    Imatrix = matrix(0, ncol = 3, nrow = length(Inames))
+    rownames(Imatrix) = Inames
+    colnames(Imatrix) = c("CI_Contains", "Bias", "BiasPct")
+
+    Rmatrix = matrix(0, ncol = 3, nrow = length(Rnames))
+    rownames(Rmatrix) = Rnames
+    colnames(Rmatrix) = c("CI_Contains", "Bias", "BiasPct")
+
+    processCompartment = function(variableName)
+    {
+        cat(paste("Processing: ", variableName, "\n", sep = ""))
+        var = c(dat1_full[[variableName]], 
+                dat2_full[[variableName]], 
+                dat3_full[[variableName]]) 
+        tmp = strsplit(variableName, "_")[[1]]
+
+        variableType = tmp[1]
+        variableIndex = as.numeric(tmp[length(tmp)]) + 1
+        trueVal = trueData[[variableType]][variableIndex]
+        
+        meanVal = mean(var)
+        bounds = quantile(var, c(0.025, 0.975))
+        CIcontains = (trueVal > min(bounds) & trueVal < max(bounds))
+        bias = meanVal - trueVal
+        biasPct = bias/abs(trueVal)*100
+        c(CIcontains, bias, biasPct) 
+    }
+
+
+    for (i in 1:length(Snames))
+    {
+        Smatrix[i,] = processCompartment(Snames[i])  
+        Ematrix[i,] = processCompartment(Enames[i])  
+        Imatrix[i,] = processCompartment(Inames[i])  
+        Rmatrix[i,] = processCompartment(Rnames[i])  
+    }
+ 
+    return(list("params"=resultsMatrix1,
+                "compartments"=list(Smatrix, Ematrix, Imatrix,Rmatrix),
+                "iterations"=max(iteration), 
+                "time"=max(time)))
 }
 
-runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0, 6, 12, 18, 24),
+runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
                           genSeed=123123, fitSeeds=c(812123,12301,5923))
 {                     
     cl = makeCluster(3, outfile = "err.txt")
@@ -348,24 +473,33 @@ runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0, 6, 12, 18, 24)
             simulation1Kernel(cl, genSeed, fitSeeds, 100000, 3, 12, ThrowAwayTpt)
         }
         simResults = lapply(genSeed + seq(1, cellIterations), f)
-        biasResults = simResults[[1]]$data
+        biasResults = simResults[[1]]$params
+        compartmentResults = simResults[[1]]$compartments
         timeResult = simResults[[1]]$time
         iterationResult = simResults[[1]]$iterations
         if (length(simResults) > 1)
         {
             for (i in 2:length(simResults))
             {
-                biasResults = biasResults + simResults[[i]]$data
+                biasResults = biasResults + simResults[[i]]$params
                 timeResult = timeResult + simResults[[i]]$time
                 iterationResult = iterationResult + simResults[[i]]$iterations
+                for (j in 1:4)
+                {
+                    compartmentResults[[j]] = compartmentResults[[j]] + (simResults[[i]]$compartmentResults)[[j]]
+                }
             }
         }
         biasResults = biasResults/length(simResults)
         timeResult = timeResult/length(simResults)
         iterationResult = iterationResult/length(simResults)
-        outData = cbind(biasResults, timeResult, iterationResult, ThrowAwayTpt)
-        colnames(outData) = c("Coverage", "AvgBias", "AvgBiasPct", "AvgTime","AvgIterations", "ThrowAwayTpt")
-        write.csv(outData, file=paste("./sim1_results_", ThrowAwayTpt, ".txt",sep=""))
+        for (j in 1:4)
+        {
+            compartmentResults[[j]] = compartmentResults[[j]]/length(simResults)
+        }
+
+        outData = list(biasResults, timeResult, iterationResult, ThrowAwayTpt, compartmentResults)
+        save(outData, file=paste("./sim1_results_", ThrowAwayTpt, ".tmp", sep=""))
     }
     print("Results obtained")
     stopCluster(cl)
