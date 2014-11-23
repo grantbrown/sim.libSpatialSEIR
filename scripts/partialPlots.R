@@ -1,8 +1,8 @@
-readData = function()
+readData = function(sim = 1)
 {
-    dat1 <<- read.csv("./sim1_1.txt")
-    dat2 <<- read.csv("./sim1_2.txt")
-    dat3 <<- read.csv("./sim1_3.txt")
+    dat1 <<- read.csv(paste("./sim", sim, "_1.txt", sep = ""))
+    dat2 <<- read.csv(paste("./sim", sim, "_2.txt", sep = ""))
+    dat3 <<- read.csv(paste("./sim", sim, "_3.txt", sep = ""))
 }
 
 

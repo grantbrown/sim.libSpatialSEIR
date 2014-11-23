@@ -1,6 +1,10 @@
 export(runSimulation1)
+export(runSimulation2)
 export(generateData)
 export(checkConvergence)
 export(buildSingleLocSimInstance)
+export(buildSingleLocSimInstance2)
 export(generateSingleLocData)
+export(generateSingleLocData2)
+
 
