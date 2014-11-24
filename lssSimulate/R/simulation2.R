@@ -308,7 +308,7 @@ runSimulation2 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
                 iterationResult = iterationResult + simResults[[i]]$iterations
                 for (j in 1:4)
                 {
-                    compartmentResults[[j]] = compartmentResults[[j]] + (simResults[[i]]$compartmentResults)[[j]]
+                    compartmentResults[[j]] = compartmentResults[[j]] + (simResults[[i]]$compartments)[[j]]
                 }
             }
         }
