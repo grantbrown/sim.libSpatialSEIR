@@ -231,7 +231,7 @@ buildSingleLocSimInstance = function(params)
     E0 = I0
     S0 = simResults$N[1] - I0 - E0
     InitContainer = buildInitialValueContainer(simResults$I_star, simResults$N, 
-                                               S0 = S0,, I0 = I0, E0 = E0)
+                                               S0 = S0,I0 = I0, E0 = E0, reinfection=TRUE,dataType="I_star")
     res = buildSEIRModel(outFileName,DataModel,ExposureModel,ReinfectionModel,DistanceModel,TransitionPriors,
                          InitContainer,SamplingControl)
 

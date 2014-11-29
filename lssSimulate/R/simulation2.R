@@ -100,8 +100,8 @@ buildSingleLocSimInstance2 = function(params)
 
     set.seed(seed)
 
-    #DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(10000,10000))
-    DataModel = buildDataModel(simResults$I_star, type = "identity")
+    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(10000,100))
+    #DataModel = buildDataModel(simResults$I_star, type = "identity")
 
 
     priorBetaIntercept = log(mean(-log(1-(simResults$I_star/(simResults$N))))) 
@@ -130,8 +130,7 @@ buildSingleLocSimInstance2 = function(params)
     E0 = I0
     S0 = simResults$N[1] - I0 - E0
     InitContainer = buildInitialValueContainer(simResults$I_star, simResults$N, 
-                                               S0 = S0, I0 = I0, E0 = E0,
-                                               p_rs=0.00, ensureConstantInfectious=TRUE)
+                                               S0 = S0, I0 = I0, E0 = E0, reinfection=FALSE, dataType = "I_star")
     res = buildSEIRModel(outFileName,DataModel,ExposureModel,ReinfectionModel,DistanceModel,TransitionPriors,
                          InitContainer,SamplingControl)
 
