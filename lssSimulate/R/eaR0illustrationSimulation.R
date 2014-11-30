@@ -123,7 +123,7 @@ simulationKernel.eaR0 = function(cl, genSeed, fitSeeds, ThrowAwayTpt)
 
 
     R0Estimates = parLapply(cl, R0Params, estimateR0) 
-    return(R0Estimates)
+    return(list(R0Estimates = R0Estimates, simResults = simResults))
 }
 
 buildSingleLocSimInstance.eaR0 = function(params) 
