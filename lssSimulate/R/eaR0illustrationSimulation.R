@@ -101,14 +101,14 @@ estimateR0 = function(params)
     return(outList)
 }
 
-simulationKernel.eaR0 = function(cl, genSeed, fitSeeds, ThrowAwayTpt)
+simulationKernel.eaR0 = function(cl, genSeed, fitSeeds, ThrowAwayTpt, underspecified)
 {
     simResults = generateSingleLocData.eaR0(genSeed, ThrowAwayTpt=ThrowAwayTpt)
 
     fileNames = c("simR0_1.txt", "simR0_2.txt", "simR0_3.txt")
-    paramsList = list(list(seed=fitSeeds[1], outFileName = fileNames[1], simResults),
-                      list(seed=fitSeeds[2], outFileName = fileNames[2], simResults),
-                      list(seed=fitSeeds[3], outFileName = fileNames[3], simResults))
+    paramsList = list(list(seed=fitSeeds[1], outFileName = fileNames[1], simResults = simResults, underspecified = underspecified),
+                      list(seed=fitSeeds[2], outFileName = fileNames[2], simResults = simResults, underspecified = underspecified),
+                      list(seed=fitSeeds[3], outFileName = fileNames[3], simResults = simResults, underspecified = underspecified))
 
     trueVals = parLapply(cl, paramsList, buildSingleLocSimInstance.eaR0)
 
@@ -137,6 +137,7 @@ buildSingleLocSimInstance.eaR0 = function(params)
     seed = params[[1]]
     outFileName = params[[2]]
     simResults = params[[3]]
+    underspecified = params[[4]]
 
     set.seed(seed)
 
@@ -146,9 +147,18 @@ buildSingleLocSimInstance.eaR0 = function(params)
 
 
     priorBetaIntercept = log(mean(-log(1-(I_star/(simResults$N))))) 
-    ExposureModel = buildExposureModel(simResults$X, Z=NA, 
-                                       beta = c(priorBetaIntercept), betaPriorPrecision = 0.1,
-                                       nTpt=nrow(I_star))
+    if (underspecified)
+    {
+        ExposureModel = buildExposureModel(simResults$X, Z=NA, 
+                                           beta = c(priorBetaIntercept), betaPriorPrecision = 0.1,
+                                           nTpt=nrow(I_star))
+    }
+    else
+    {
+        ExposureModel = buildExposureModel(simResults$X, Z=simResults$Z, 
+                                           beta = c(priorBetaIntercept, 0), betaPriorPrecision = 0.1,
+                                           nTpt=nrow(I_star))
+    }
     ReinfectionModel = buildReinfectionModel("SEIR")
     SamplingControl = buildSamplingControl(iterationStride=1000,
                                            sliceWidths = c(0.26,  # S_star
@@ -200,17 +210,18 @@ buildSingleLocSimInstance.eaR0 = function(params)
 }
 
 
-runSimulation.eaR0 = function(ThrowAwayTpt=0, genSeed=123123, fitSeeds=c(812123,12301,5923))
+runSimulation.eaR0 = function(ThrowAwayTpt=0, genSeed=123123, fitSeeds=c(812123,12301,5923), underspecified=FALSE)
 {                     
     cl = makeCluster(3, outfile = "err.txt")
     print("Cluster Created")
     clusterExport(cl, c("buildSingleLocSimInstance.eaR0"))
     print("Variables Exported.") 
  
-    simResults = simulationKernel.eaR0(cl, genSeed, fitSeeds,ThrowAwayTpt)
+    simResults = simulationKernel.eaR0(cl, genSeed, fitSeeds,ThrowAwayTpt, underspecified)
     
     outData = simResults 
-    save(outData, file=paste("./simR0_results_", ThrowAwayTpt, ".tmp", sep=""))
+    specString = ifelse(underspecified, "underspec", "correct")
+    save(outData, file=paste("./simR0_results_", specString, "_", ThrowAwayTpt, ".tmp", sep=""))
 
     print("Results obtained")
     stopCluster(cl)
