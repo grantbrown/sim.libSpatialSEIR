@@ -1,10 +1,14 @@
 export(runSimulation1)
 export(runSimulation2)
+export(runSimulation.eaR0)
 export(generateData)
 export(checkConvergence)
 export(buildSingleLocSimInstance)
 export(buildSingleLocSimInstance2)
+export(buildSingleLocSimInstance.eaR0)
 export(generateSingleLocData)
 export(generateSingleLocData2)
+export(generateSingleLocData.eaR0)
+
 
 
