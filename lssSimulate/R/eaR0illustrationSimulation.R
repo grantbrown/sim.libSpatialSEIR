@@ -22,8 +22,6 @@ generateSingleLocData.eaR0 = function(seed,
 
     X_RS = matrix(1, nrow = maxTpt)
 
-
-
     distMatList = -1   
     rho = -1
     gamma_ei = 0.35
@@ -50,6 +48,8 @@ generateSingleLocData.eaR0 = function(seed,
                        gamma_ir,
                        effectiveTransitionSampleSize
                        )
+    # use the real data here.
+    out$I_star = matrix(Kikwit95$Count[1:nTpt], ncol=1)
 
     if (sum(out$I == 0) > 100)
     {
@@ -57,6 +57,12 @@ generateSingleLocData.eaR0 = function(seed,
         return(generateSingleLocData.eaR0(seed + rpois(1, 1000), ThrowAwayTpt=ThrowAwayTpt))
     }
     out
+}
+
+hpdEst = function(vec)
+{
+    dens = density(vec)
+    dens$x[which.max(dens$y)]
 }
 
 estimateR0 = function(params)
@@ -81,7 +87,7 @@ estimateR0 = function(params)
     R0LB = apply(R0, 1:2, quantile, probs = 0.05)
     R0UB = apply(R0, 1:2, quantile, probs = 0.95)
 
-    empiricalR0Mean = apply(empiricalR0, 1:2, mean)
+    empiricalR0Mean = apply(empiricalR0, 1:2, hpdEst)
     empiricalR0LB = apply(empiricalR0, 1:2, quantile, probs = 0.05)
     empiricalR0UB = apply(empiricalR0, 1:2, quantile, probs = 0.95)
 
@@ -97,7 +103,6 @@ estimateR0 = function(params)
 
 simulationKernel.eaR0 = function(cl, genSeed, fitSeeds, ThrowAwayTpt)
 {
-    #TODO: Vary starting linear predictor parameters on each iteration 
     simResults = generateSingleLocData.eaR0(genSeed, ThrowAwayTpt=ThrowAwayTpt)
 
     fileNames = c("simR0_1.txt", "simR0_2.txt", "simR0_3.txt")
@@ -107,15 +112,15 @@ simulationKernel.eaR0 = function(cl, genSeed, fitSeeds, ThrowAwayTpt)
 
     trueVals = parLapply(cl, paramsList, buildSingleLocSimInstance.eaR0)
 
-    iterationParams = list(list(100000, 1000, 0.2, 0.05, 0.1),
-                           list(100000, 1000, 0.2, 0.05, 0.1),
-                           list(100000, 1000, 0.2, 0.05, 0.1))
+    iterationParams = list(list(10000, 1000, 0.2, 0.05, 0.1),
+                           list(10000, 1000, 0.2, 0.05, 0.1),
+                           list(10000, 1000, 0.2, 0.05, 0.1))
     conv = FALSE
     while (!conv)
     {
         cat("Not converged, adding iterations...\n")
         parLapply(cl, iterationParams, additionalIterations)
-        conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3])
+        conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3], maxVal = 1.02)
     }
     R0Params = list(list(1000,100),
                     list(1000,100),
@@ -135,14 +140,15 @@ buildSingleLocSimInstance.eaR0 = function(params)
 
     set.seed(seed)
 
-    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(10000,100))
+    I_star = matrix(simResults$I_star, ncol = 1)
+    DataModel = buildDataModel(I_star, type = "overdispersion", params = c(10000,100))
     #DataModel = buildDataModel(simResults$I_star, type = "identity")
 
 
-    priorBetaIntercept = log(mean(-log(1-(simResults$I_star/(simResults$N))))) 
+    priorBetaIntercept = log(mean(-log(1-(I_star/(simResults$N))))) 
     ExposureModel = buildExposureModel(simResults$X, Z=NA, 
                                        beta = c(priorBetaIntercept), betaPriorPrecision = 0.1,
-                                       nTpt=nrow(simResults$I_star))
+                                       nTpt=nrow(I_star))
     ReinfectionModel = buildReinfectionModel("SEIR")
     SamplingControl = buildSamplingControl(iterationStride=1000,
                                            sliceWidths = c(0.26,  # S_star
@@ -162,10 +168,10 @@ buildSingleLocSimInstance.eaR0 = function(params)
                                                              1-exp(-simResults$gamma_ir), simResults$effectiveTransitionSampleSize,
                                                              simResults$effectiveTransitionSampleSize) 
 
-    I0 = max(simResults$I_star[1:10], simResults$I_star[2], 2)
+    I0 = max(I_star[1:10], I_star[2], 2)
     E0 = I0
     S0 = simResults$N[1] - I0 - E0
-    InitContainer = buildInitialValueContainer(simResults$I_star, simResults$N, 
+    InitContainer = buildInitialValueContainer(I_star, simResults$N, 
                                                S0 = S0, I0 = I0, E0 = E0, reinfection=FALSE, dataType = "I_star")
     res = buildSEIRModel(outFileName,DataModel,ExposureModel,ReinfectionModel,DistanceModel,TransitionPriors,
                          InitContainer,SamplingControl)

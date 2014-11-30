@@ -15,7 +15,7 @@ pdf(file="./EA_RO_Comparison.pdf", width = 12, height = 8)
     
 
 
-    plot(r01$mean[1:(length(r01$mean) - 1)], ylim = r0.ylim, main = "Traditional R0: Underspecified Intensity",
+    plot(r01$mean[1:(length(r01$mean) - 1)], ylim = r0.ylim, main = "Traditional R0: Underspecified Intensity\n Posterior Mode and 90% CI",
          xlab = "Day", ylab = "Reproductive Number", type = "l")
     abline(h = seq(0,5,0.2), lty = 3,col="lightgrey")
     abline(h = 1.0, col = "blue", lwd = 1.5, lty = 2)
@@ -25,7 +25,7 @@ pdf(file="./EA_RO_Comparison.pdf", width = 12, height = 8)
     barplot(t(outData$simResults$I_star), main = "New Cases", xlab = "Day", ylab = "Cases")
     axis(side = 1, at = seq(0, (length(r01$mean)), 50))
 
-    plot(r02$mean[1:(length(r02$mean) - 1)], ylim = r0.ylim, main = "EA-R0: Underspecified Intensity",
+    plot(r02$mean[1:(length(r02$mean) - 1)], ylim = r0.ylim, main = "EA-R0: Underspecified Intensity\n Posterior Mode and 90% CI",
          xlab = "Day", ylab = "Reproductive Number", type = "l")
     abline(h = seq(0,5,0.2), lty = 3,col="lightgrey")
     abline(h = 1.0, col = "blue", lwd = 1.5, lty = 2)
