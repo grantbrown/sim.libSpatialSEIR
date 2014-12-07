@@ -128,7 +128,7 @@ simulationKernel.eaR0 = function(cl, genSeed, fitSeeds, ThrowAwayTpt, underspeci
 
     tmp = read.csv(fileNames[1])
     timeRequired = max(tmp$Time)
-    iterationsRequired = max(tmp$Iterations)
+    iterationsRequired = max(tmp$Iteration)
 
     R0Estimates = parLapply(cl, R0Params, estimateR0) 
     return(list(R0Estimates = R0Estimates, simResults = simResults, Time=timeRequired, Iterations=iterationsRequired))
