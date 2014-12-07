@@ -24,10 +24,10 @@ generateSingleLocData.eaR0 = function(seed,
 
     distMatList = -1   
     rho = -1
-    gamma_ei = 0.35
-    gamma_ir = 0.125
+    gamma_ei = 1/5
+    gamma_ir = 1/7
     
-    effectiveTransitionSampleSize = 100000
+    effectiveTransitionSampleSize = 1000
     timeIndex = 0:maxTpt
 
     out = generateData(seed + 1, 
@@ -122,9 +122,9 @@ simulationKernel.eaR0 = function(cl, genSeed, fitSeeds, ThrowAwayTpt, underspeci
         parLapply(cl, iterationParams, additionalIterations)
         conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3], maxVal = 1.02)
     }
-    R0Params = list(list(1000,100),
-                    list(1000,100),
-                    list(1000,100))
+    R0Params = list(list(1000,1000),
+                    list(1000,1000),
+                    list(1000,1000))
 
 
     R0Estimates = parLapply(cl, R0Params, estimateR0) 
