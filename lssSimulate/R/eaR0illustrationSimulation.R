@@ -126,9 +126,12 @@ simulationKernel.eaR0 = function(cl, genSeed, fitSeeds, ThrowAwayTpt, underspeci
                     list(1000,1000),
                     list(1000,1000))
 
+    tmp = read.csv(fileNames[1])
+    timeRequired = max(tmp$Time)
+    iterationsRequired = max(tmp$Iteration)
 
     R0Estimates = parLapply(cl, R0Params, estimateR0) 
-    return(list(R0Estimates = R0Estimates, simResults = simResults))
+    return(list(R0Estimates = R0Estimates, simResults = simResults, Time=timeRequired, Iterations=iterationsRequired))
 }
 
 buildSingleLocSimInstance.eaR0 = function(params) 
