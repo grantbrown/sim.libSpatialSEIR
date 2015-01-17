@@ -1,2 +1,2 @@
 library(lssSimulate)
-result=runSimulation(cellIterations = 100, ThrowAwayTpt = c(0, 50))
+result=runSimulation2(cellIterations = 100, ThrowAwayTpt = c(0, 50))
