@@ -26,10 +26,10 @@ generateSingleLocData2 = function(seed,
 
     distMatList = -1   
     rho = -1
-    gamma_ei = 0.35
-    gamma_ir = 0.125
+    gamma_ei = 1/5
+    gamma_ir = 1/7
     
-    effectiveTransitionSampleSize = 100000
+    effectiveTransitionSampleSize = 1000
     timeIndex = 0:maxTpt
 
     out = generateData(seed + 1, 
@@ -319,7 +319,7 @@ runSimulation2 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
             compartmentResults[[j]] = compartmentResults[[j]]/length(simResults)
         }
 
-        outData = list(biasResults, timeResult, iterationResult, ThrowAwayTpt, compartmentResults)
+        outData = list(biasResults=biasResults, timeResult=timeResult, iterationResult=iterationResult, throwAwayTpt=ThrowAwayTpt, compartmentResult=compartmentResults)
         save(outData, file=paste("./sim2_results_", ThrowAwayTpt, ".tmp", sep=""))
     }
     print("Results obtained")

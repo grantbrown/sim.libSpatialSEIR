@@ -238,8 +238,8 @@ buildSingleLocSimInstance = function(params)
     res$setRandomSeed(seed)
     res$setTrace(0)
     res$compartmentSamplingMode = 17
-    res$useDecorrelation = 10
-    res$performHybridStep = 10
+    res$useDecorrelation = 50
+    res$performHybridStep = 50
     # Burn in tuning parameters
     for (i in 1:(200))
     {
@@ -434,7 +434,7 @@ runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
     {
         f = function(genSeed)
         {
-            simulation1Kernel(cl, genSeed, fitSeeds, 100000, 3, 12, ThrowAwayTpt)
+            simulation1Kernel(cl, genSeed, fitSeeds + genSeed, 100000, 3, 12, ThrowAwayTpt)
         }
         simResults = lapply(genSeed + seq(1, cellIterations), f)
         biasResults = simResults[[1]]$params
