@@ -111,7 +111,7 @@ buildSingleLocSimInstance2 = function(params)
 
     priorBetaIntercept = log(mean(-log(1-(simResults$I_star/(simResults$N))))) 
     ExposureModel = buildExposureModel(simResults$X, simResults$Z, 
-                                       beta = c(priorBetaIntercept, rep(0, ((length(simResults$beta_SE))-1))), betaPriorPrecision = 0.1)
+                                       beta = c(priorBetaIntercept, rep(0, ((length(simResults$beta_SE))-1))), betaPriorPrecision = 1)
     ReinfectionModel = buildReinfectionModel("SEIR")
     SamplingControl = buildSamplingControl(iterationStride=1000,
                                            sliceWidths = c(0.26,  # S_star
