@@ -85,10 +85,15 @@ simulation2Kernel = function(cl, genSeed, fitSeeds, ThrowAwayTpt)
     {
         cat("Not converged, adding iterations...\n")
         parLapply(cl, iterationParams, additionalIterations)
-        conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3])
+        conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3], maxVal=1.02)
     }
 
-    computeSim2Results(fileNames[1], fileNames[2], fileNames[3], simResults)
+    #computeSim2Results(fileNames[1], fileNames[2], fileNames[3], simResults)
+
+    dat1=read.csv(fileNames[1])
+    dat2=read.csv(fileNames[2])
+    dat3=read.csv(fileNames[3])
+    list(dat1=dat1,dat2=dat2,dat3=dat3,simResults=simResults)
 }
 
 buildSingleLocSimInstance2 = function(params) 
@@ -100,7 +105,7 @@ buildSingleLocSimInstance2 = function(params)
 
     set.seed(seed)
 
-    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(10000,100))
+    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(500,100))
     #DataModel = buildDataModel(simResults$I_star, type = "identity")
 
 
@@ -165,6 +170,10 @@ computeSim2Results = function(fileName1, fileName2, fileName3, trueData)
         cat(paste("Checking for: ", variableName, "\n", sep = ""))
         sl = summarylist[[2]]
         variableIdx = which(rownames(sl) == variableName)
+        if (length(variableIdx) == 0)
+        {
+            return(NA)
+        }
         bounds = sl[variableIdx,][c(1,5)]
         trueVal < bounds[2] && trueVal > bounds[1]
     }
@@ -173,6 +182,9 @@ computeSim2Results = function(fileName1, fileName2, fileName3, trueData)
     {
         sl = summaryList[[1]]
         variableIdx = which(rownames(sl) == variableName)
+        if (length(variableIdx) == 0){
+            return(NA)
+        }
         sl[variableIdx, 1]
     }
 
@@ -187,10 +199,13 @@ computeSim2Results = function(fileName1, fileName2, fileName3, trueData)
     iteration = dat1$Iteration
     time = dat1$Time
     
-    dat1 = as.mcmc(dat1_full[,1:(ncol(dat1_full) - 2)])
-    dat2 = as.mcmc(dat2_full[,1:(ncol(dat2_full) - 2)])
-    dat3 = as.mcmc(dat3_full[,1:(ncol(dat3_full) - 2)])
-    mcl = mcmc.list(dat1,dat2,dat3)
+    dat1 = dat1_full[,1:(ncol(dat1_full) - 2)]
+    dat2 = dat2_full[,1:(ncol(dat2_full) - 2)]
+    dat3 = dat3_full[,1:(ncol(dat3_full) - 2)]
+    nonZeroVar = ((apply(dat1, 2, var) != 0) | (apply(dat2, 2, var) != 0) | (apply(dat3, 2, var) != 0))
+    mcl = mcmc.list(as.mcmc(dat1[,nonZeroVar]),
+                    as.mcmc(dat2[,nonZeroVar]),
+                    as.mcmc(dat3[,nonZeroVar]))
 
     mcl.summary = summary(mcl)
 
@@ -294,33 +309,35 @@ runSimulation2 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
             simulation2Kernel(cl, genSeed, fitSeeds,ThrowAwayTpt)
         }
         simResults = lapply(genSeed + seq(1, cellIterations), f)
-        biasResults = simResults[[1]]$params
-        compartmentResults = simResults[[1]]$compartments
-        timeResult = simResults[[1]]$time
-        iterationResult = simResults[[1]]$iterations
-        if (length(simResults) > 1)
-        {
-            for (i in 2:length(simResults))
-            {
-                biasResults = biasResults + simResults[[i]]$params
-                timeResult = timeResult + simResults[[i]]$time
-                iterationResult = iterationResult + simResults[[i]]$iterations
-                for (j in 1:4)
-                {
-                    compartmentResults[[j]] = compartmentResults[[j]] + (simResults[[i]]$compartments)[[j]]
-                }
-            }
-        }
-        biasResults = biasResults/length(simResults)
-        timeResult = timeResult/length(simResults)
-        iterationResult = iterationResult/length(simResults)
-        for (j in 1:4)
-        {
-            compartmentResults[[j]] = compartmentResults[[j]]/length(simResults)
-        }
+        #biasResults = simResults[[1]]$params
+        #compartmentResults = simResults[[1]]$compartments
+        #timeResult = simResults[[1]]$time
+        #iterationResult = simResults[[1]]$iterations
+        #if (length(simResults) > 1)
+        #{
+        #    for (i in 2:length(simResults))
+        #    {
+        #        biasResults = biasResults + simResults[[i]]$params
+        #        timeResult = timeResult + simResults[[i]]$time
+        #        iterationResult = iterationResult + simResults[[i]]$iterations
+        #        for (j in 1:4)
+        #        {
+        #            compartmentResults[[j]] = compartmentResults[[j]] + (simResults[[i]]$compartments)[[j]]
+        #        }
+        #    }
+        #}
+        #biasResults = biasResults/length(simResults)
+        #timeResult = timeResult/length(simResults)
+        #iterationResult = iterationResult/length(simResults)
+        #for (j in 1:4)
+        #{
+        #    compartmentResults[[j]] = compartmentResults[[j]]/length(simResults)
+        #}
 
-        outData = list(biasResults=biasResults, timeResult=timeResult, iterationResult=iterationResult, throwAwayTpt=ThrowAwayTpt, compartmentResult=compartmentResults)
-        save(outData, file=paste("./sim2_results_", ThrowAwayTpt, ".tmp", sep=""))
+        #outData = list(biasResults=biasResults, timeResult=timeResult, iterationResult=iterationResult, throwAwayTpt=ThrowAwayTpt, compartmentResult=compartmentResults)
+        #save(outData, file=paste("./sim2_results_", ThrowAwayTpt, ".tmp", sep=""))
+        save(simResults, file=paste("./sim2_results_", ThrowAwayTpt, ".Rda.bz2", sep=""), 
+             compress="bzip2")
     }
     print("Results obtained")
     stopCluster(cl)
