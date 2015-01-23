@@ -1,7 +1,7 @@
 generateSingleLocData2 = function(seed, 
                                   population=5363500, 
                                   ThrowAwayTpt=0,
-                                  beta_SE=c(-1.5,-0.055),
+                                  beta_SE=c(-1.4,-0.055),
                                   beta_RS=c(-100000))
 {    
     set.seed(seed)
@@ -51,7 +51,7 @@ generateSingleLocData2 = function(seed,
                        effectiveTransitionSampleSize
                        )
 
-    if (sum(out$I == 0) > 100)
+    if (sum(out$I == 0) > 100 || max(out$I) < 15)
     {
         cat("Rejecting simulated data - epidemic died out too soon.\n")
         return(generateSingleLocData2(seed + rpois(1, 1000), ThrowAwayTpt=ThrowAwayTpt))
