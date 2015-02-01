@@ -306,9 +306,18 @@ runSimulation2 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
     {
         f = function(genSeed)
         {
-            simulation2Kernel(cl, genSeed, fitSeeds,ThrowAwayTpt)
+            simulation2Kernel(cl, genSeed, fitSeeds + genSeed,ThrowAwayTpt)
         }
-        simResults = lapply(genSeed + seq(1, cellIterations), f)
+        #simResults = lapply(genSeed + seq(1, cellIterations), f)
+	itrSeeds = genSeed + seq(1, cellIterations)
+	i = 1
+	for (itrSeed in itrSeeds){
+	    result = f(itrSeed)
+	    save(result, file=paste("./sim2_results_", ThrowAwayTpt, "_", i, ".Rda.bz2", sep=""), 
+        	 compress="bzip2")
+	    i=i+1
+	}
+	
         #biasResults = simResults[[1]]$params
         #compartmentResults = simResults[[1]]$compartments
         #timeResult = simResults[[1]]$time
@@ -336,8 +345,6 @@ runSimulation2 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
 
         #outData = list(biasResults=biasResults, timeResult=timeResult, iterationResult=iterationResult, throwAwayTpt=ThrowAwayTpt, compartmentResult=compartmentResults)
         #save(outData, file=paste("./sim2_results_", ThrowAwayTpt, ".tmp", sep=""))
-        save(simResults, file=paste("./sim2_results_", ThrowAwayTpt, ".Rda.bz2", sep=""), 
-             compress="bzip2")
     }
     print("Results obtained")
     stopCluster(cl)

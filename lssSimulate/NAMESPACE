@@ -1,3 +1,4 @@
+export(simulation2Kernel)
 export(runSimulation1)
 export(runSimulation2)
 export(runSimulation.eaR0)
