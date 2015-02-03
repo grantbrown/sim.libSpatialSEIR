@@ -11,7 +11,7 @@ generateMultiLocData = function(seed,
     S0 = population - R0 - E0 - I0
     N = population
 
-    maxTpt = 150
+    maxTpt = 50
     nTpt = maxTpt
     
     X = matrix(1, nrow = 7, ncol = 1)

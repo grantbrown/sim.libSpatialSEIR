@@ -1,2 +1,2 @@
 library(lssSimulate)
-result=runSimulationSmSamp(cellIterations = 2)
+result=runSimulationSmSamp(cellIterations = 50)
