@@ -46,6 +46,16 @@ generateMultiLocData = function(seed,
                        gamma_ir,
                        effectiveTransitionSampleSize
                        )
+    if (sum(out$I_star) < 10 || sum(apply(out$I_star, 2, sum) != 0) < 2)
+    {
+	newSeed = seed + 1
+        cat(paste("Epidemic died out too quickly, re-simulating with seed ", newSeed, "\n", sep = ""))
+	return(generateMultiLocData(newSeed, 
+                                    population,
+                                    beta_SE,
+                                    rho,
+                                    beta_RS))
+    }
 }
 
 simulationSmSampKernel = function(cl, genSeed, fitSeeds)
@@ -160,7 +170,7 @@ runSimulationSmSamp = function(cellIterations = 50,
     {
         simulationSmSampKernel(cl, genSeed, fitSeeds)
     }
-    simResults = lapply(genSeed + seq(1, cellIterations), f)
+    simResults = lapply(genSeed + 100*seq(1, cellIterations), f)
     save(simResults, file=paste("./simSmSamp_results_0.Rda.bz2", sep=""), 
          compress="bzip2")
     print("Results obtained")

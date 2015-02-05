@@ -113,14 +113,6 @@ generateData = function(seed,
         }
     }
 
-    if (sum(I_star) < 10 || sum(apply(I_star, 2, sum) != 0) < 2)
-    {
-        cat("Epidemic died out too quickly, re-simulating\n")
-        return(generateData(seed+rpois(1,10)-rpois(1,10), nTpt,S0,E0,I0,R0,timeIndex,
-                            beta_SE,beta_RS,distMatList,rho,X,
-                            Z,X_RS,gamma_ei,gamma_ir,
-                            effectiveTransitionSampleSize)) 
-    }
     return(list(S_star=S_star,
                 E_star=E_star,
                 I_star=I_star,
