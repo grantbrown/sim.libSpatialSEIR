@@ -56,6 +56,9 @@ generateMultiLocData = function(seed,
                                     rho,
                                     beta_RS))
     }
+    else{
+	return(out)
+    }
 }
 
 simulationSmSampKernel = function(cl, genSeed, fitSeeds)
