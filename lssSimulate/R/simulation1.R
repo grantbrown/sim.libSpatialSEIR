@@ -211,7 +211,7 @@ buildSingleLocSimInstance = function(params)
 
 
     priorBetaIntercept = log(mean(-log(1-(simResults$I_star/(simResults$N))))) 
-    ExposureModel = buildExposureModel(simResults$X, simResults$Z, 
+    ExposureModel = buildExposureModel_depricated(simResults$X, simResults$Z, 
                                        beta = c(priorBetaIntercept, rep(0, ((length(simResults$beta_SE))-1))), betaPriorPrecision = 0.1)
     ReinfectionModel = buildReinfectionModel("SEIRS", X_prs = simResults$X_RS, 
                                              betaPrs = -c(1, rep(0,(length(simResults$beta_RS)-1))), 
