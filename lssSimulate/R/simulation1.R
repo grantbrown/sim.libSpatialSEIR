@@ -20,17 +20,23 @@ generateData = function(seed,
 {
     set.seed(seed)
     
-    if (nTpt > nrow(Z)/nrow(X))
+
+    if (!is.na(Z) && nTpt > nrow(Z)/nrow(X))
     {
         stop(paste("Not enough information provided for ", nTpt, " time points.\n", sep = ""))
     }
-    # Make a big matrix out of X and Z
-    bigX_SE = cbind(X[rep(c(1:nrow(X)), nrow(Z)/nrow(X)),], Z)
-    bigX_SE = bigX_SE[(rep(1:nTpt, nrow(X)) + rep(0:(nrow(X)-1), 
-                            each=nrow(X))*(nrow(Z)/nrow(X))),,drop=FALSE]
-    Z = Z[(rep(1:nTpt, nrow(X)) + rep(0:(nrow(X)-1), 
-                            each=nrow(X))*(nrow(Z)/nrow(X))),,drop=FALSE]
 
+    # Make a big matrix out of X and Z
+    if (all(is.na(Z)))
+    {
+        bigX_SE = cbind(X[rep(c(1:nrow(X)), each=nTpt),])
+    }
+    else
+    {
+
+        Z = Z[rep(1:nTpt, nrow(X)),]
+        bigX_SE = cbind(X[rep(c(1:nrow(X)), nTpt),], Z)
+    }
 
     # Calculate temporal offsets. 
     uncumulate = function(x)
@@ -63,7 +69,7 @@ generateData = function(seed,
     S_star = E_star = I_star = R_star = S = E = I = R = matrix(0, nrow = nTpt, ncol = nrow(X))
 
     # Declare N
-    N = matrix(S0+E0+I0+R0, ncol = nrow(X), nrow = length(offsets))
+    N = matrix(S0+E0+I0+R0, ncol = nrow(X), nrow = length(offsets), byrow=TRUE)
 
     # Run Simulation 
     offsetMatrix = matrix(offsets, nrow = length(offsets), ncol = nrow(X))
@@ -127,6 +133,7 @@ generateData = function(seed,
                 beta_RS=beta_RS,
                 gamma_ei=gamma_ei,
                 gamma_ir=gamma_ir,
+                distMatList=distMatList,
                 p_SE=p_SE,
                 p_EI=p_EI,
                 p_IR=p_IR,
@@ -204,7 +211,7 @@ buildSingleLocSimInstance = function(params)
 
 
     priorBetaIntercept = log(mean(-log(1-(simResults$I_star/(simResults$N))))) 
-    ExposureModel = buildExposureModel(simResults$X, simResults$Z, 
+    ExposureModel = buildExposureModel_depricated(simResults$X, simResults$Z, 
                                        beta = c(priorBetaIntercept, rep(0, ((length(simResults$beta_SE))-1))), betaPriorPrecision = 0.1)
     ReinfectionModel = buildReinfectionModel("SEIRS", X_prs = simResults$X_RS, 
                                              betaPrs = -c(1, rep(0,(length(simResults$beta_RS)-1))), 
