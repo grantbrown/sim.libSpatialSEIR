@@ -54,21 +54,16 @@ generateSingleLocData2 = function(seed,
     if (sum(out$I == 0) > 100 || max(out$I) < 15)
     {
         cat("Rejecting simulated data - epidemic died out too soon.\n")
-        return(generateSingleLocData2(seed + rpois(1, 1000), ThrowAwayTpt=ThrowAwayTpt))
+        return(generateSingleLocData2(seed + rpois(1, 1000), ThrowAwayTpt=ThrowAwayTpt, beta_SE=beta_SE))
     }
     out
 }
 
-#generateSingleLocData2 = function(seed, 
-#                                  population=5363500, 
-#                                  ThrowAwayTpt=0,
-#                                  beta_SE=c(-1.5,-0.055),
-#                                  beta_RS=c(-100000))
 
-simulation2Kernel = function(cl, genSeed, fitSeeds, ThrowAwayTpt)
+simulation2Kernel = function(cl, genSeed, fitSeeds, ThrowAwayTpt, beta_SE)
 {
     #TODO: Vary starting linear predictor parameters on each iteration 
-    simResults = generateSingleLocData2(genSeed, ThrowAwayTpt=ThrowAwayTpt)
+    simResults = generateSingleLocData2(genSeed, ThrowAwayTpt=ThrowAwayTpt, beta_SE=beta_SE)
 
     fileNames = c("sim2_1.txt", "sim2_2.txt", "sim2_3.txt")
     paramsList = list(list(seed=fitSeeds[1], outFileName = fileNames[1], simResults),
@@ -142,19 +137,19 @@ buildSingleLocSimInstance2 = function(params)
     res$setRandomSeed(seed)
     res$setTrace(0)
     # Burn in tuning parameters
-    for (i in 1:(200))
+    for (i in 1:(500))
     {
         res$simulate(10)
         res$updateSamplingParameters(0.2, 0.05, 0.01)
     }
-    for (i in 1:(20))
+    for (i in 1:(50))
     {
         res$simulate(100)
         res$updateSamplingParameters(0.2, 0.05, 0.01)
     }
     res$compartmentSamplingMode = 17
-    res$useDecorrelation = 10
-    res$performHybridStep = 10
+    res$useDecorrelation = 50
+    res$performHybridStep = 50
 
     # Store the model object in the global namespace of the node - can't pass these between sessions
     localModelObject <<- res
@@ -295,7 +290,8 @@ computeSim2Results = function(fileName1, fileName2, fileName3, trueData)
 
 
 runSimulation2 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
-                          genSeed=123123, fitSeeds=c(812123,12301,5923))
+                          genSeed=123123, fitSeeds=c(812123,12301,5923),
+                          beta_SE=c(-1.4,-0.055))
 {                     
     cl = makeCluster(3, outfile = "err.txt")
     print("Cluster Created")
@@ -306,7 +302,7 @@ runSimulation2 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
     {
         f = function(genSeed)
         {
-            simulation2Kernel(cl, genSeed, fitSeeds + genSeed,ThrowAwayTpt)
+            simulation2Kernel(cl, genSeed, fitSeeds + genSeed,ThrowAwayTpt, beta_SE)
         }
         #simResults = lapply(genSeed + seq(1, cellIterations), f)
 	itrSeeds = genSeed + seq(1, cellIterations)
