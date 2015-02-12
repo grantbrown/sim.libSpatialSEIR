@@ -66,7 +66,9 @@ simulationSmSampKernel = function(cl, genSeed, fitSeeds)
 
     simResults = generateMultiLocData(genSeed)
 
-    fileNames = c("sim2_1.txt", "sim2_2.txt", "sim2_3.txt")
+    fileNames = c(paste("sim2_1", genSeed, ".txt", sep = ""),
+		  paste("sim2_2", genSeed, ".txt", sep = ""),
+		  paste("sim2_3", genSeed, ".txt", sep = ""))
     paramsList = list(list(seed=fitSeeds[1], outFileName = fileNames[1], simResults),
                       list(seed=fitSeeds[2], outFileName = fileNames[2], simResults),
                       list(seed=fitSeeds[3], outFileName = fileNames[3], simResults))
@@ -167,19 +169,25 @@ buildSmSampSimInstance = function(params)
 runSimulationSmSamp = function(cellIterations = 50,
                                genSeed=123123, fitSeeds=c(812123,12301,5923))
 {                     
-    cl = makeCluster(3, outfile = "err.txt")
-    print("Cluster Created")
-    clusterExport(cl, c("buildSmSampSimInstance"))
-    print("Variables Exported.") 
- 
-    f = function(genSeed)
-    {
-        simulationSmSampKernel(cl, genSeed, fitSeeds)
-    }
-    simResults = lapply(genSeed + 100*seq(1, cellIterations), f)
-    save(simResults, file=paste("./simSmSamp_results_0.Rda.bz2", sep=""), 
-         compress="bzip2")
-    print("Results obtained")
-    stopCluster(cl)
-    TRUE
+
+    seeds = genSeed + 100*seq(1, cellIterations)
+    main.cluster = makeCluster(2)
+    clusterExport(main.cluster, c("fitSeeds", "cellIterations", "buildSmSampSimInstance", 
+				"simulationSmSampKernel"), envir = environment())
+    outer.loop = function(seedVal){
+	    library(lssSimulate)
+	    cl = makeCluster(3, outfile = "err.txt")
+	    clusterExport(cl, c("buildSmSampSimInstance")) 
+	    f = function(genSeed)
+	    {
+		library(lssSimulate)
+		simulationSmSampKernel(cl, seedVal, fitSeeds)
+	    }
+	    simResults = f(seedVal) 
+	    save(simResults, file=paste("./simSmSamp_results_0_", seedVal,".Rda.bz2", sep=""), 
+		 compress="bzip2")
+	    stopCluster(cl)
+	    TRUE
+   }
+   parLapply(main.cluster, seeds, outer.loop)	
 }
