@@ -141,7 +141,7 @@ buildSmSampSimInstance = function(params)
     res$setRandomSeed(seed)
     for (i in 1:length(I0))
     {
-        res$setTrace(i)
+        res$setTrace(i-1)
     }
     # Burn in tuning parameters
     for (i in 1:(200))
