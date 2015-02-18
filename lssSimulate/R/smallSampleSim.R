@@ -1,8 +1,10 @@
 generateMultiLocData = function(seed, 
+                                nTpt = 50,
                                  population=c(32,14,9,32,21,19,32), 
                                  beta_SE=c(-1.8650),
                                  rho = c(0.56),
-                                 beta_RS=c(-100000))
+                                 beta_RS=c(-100000),
+                                 DM = NA)
 {    
     set.seed(seed)
     E0 = rep(0, length(population))  
@@ -11,17 +13,21 @@ generateMultiLocData = function(seed,
     S0 = population - R0 - E0 - I0
     N = population
 
-    maxTpt = 50
-    nTpt = maxTpt
+    nLoc = length(population)
+    maxTpt = nTpt
     
-    X = matrix(1, nrow = 7, ncol = 1)
+    X = matrix(1, nrow = nLoc, ncol = 1)
     Z = NA
 
     X_RS = matrix(1, nrow = maxTpt)
 
     # Use overall spatial correlation parameter
-    distMatList = list((1-diag(length(N)))/length(N)) 
-    rho = rho
+    if (length(DM) == 1 && is.na(DM)){
+        distMatList = list((1-diag(length(N)))/length(N)) 
+    }
+    else{
+        distMatList = DM
+    }
     gamma_ei = 0.184
     gamma_ir = 0.142
     
@@ -46,11 +52,12 @@ generateMultiLocData = function(seed,
                        gamma_ir,
                        effectiveTransitionSampleSize
                        )
-    if (sum(out$I_star) < 10 || sum(apply(out$I_star, 2, sum) != 0) < 2)
+    if (sum(out$I_star) < min(10, floor(sqrt(nrow(out$I_star)))) || (sum(apply(out$I_star, 2, sum) != 0) < 2 && ncol(out$I_star) != 1))
     {
 	newSeed = seed + 1
         cat(paste("Epidemic died out too quickly, re-simulating with seed ", newSeed, "\n", sep = ""))
 	return(generateMultiLocData(newSeed, 
+                                nTpt,
                                     population,
                                     beta_SE,
                                     rho,
@@ -60,6 +67,7 @@ generateMultiLocData = function(seed,
 	return(out)
     }
 }
+
 
 simulationSmSampKernel = function(cl, genSeed, fitSeeds)
 {                
@@ -191,3 +199,5 @@ runSimulationSmSamp = function(cellIterations = 50,
    }
    parLapply(main.cluster, seeds, outer.loop)	
 }
+
+
