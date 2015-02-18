@@ -56,7 +56,7 @@ runSimulationSpatialEstimation = function(cellIterations = 50,
                                           ){
     seeds = genSeed + 100*seq(1, cellIterations)
     params = lapply(seeds, function(x){list(seed = x, nTpt=nTpt, population=population, rho=rho)})
-    main.cluster = makeCluster(1)
+    main.cluster = makeCluster(2)
     clusterExport(main.cluster, c("fitSeeds", "buildSmSampSimInstance", 
 				"simulationSmSampKernel"), envir = environment())
     outer.loop = function(paramVal){
