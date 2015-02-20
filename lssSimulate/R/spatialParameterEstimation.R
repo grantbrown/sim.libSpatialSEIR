@@ -69,7 +69,7 @@ runSimulationSpatialEstimation = function(cellIterations = 50,
             spatialEstimationKernel(paramVals,cl)
 	    }
 	    simResults = f(paramVal) 
-	    save(simResults, file=paste("./simLgSamp_results_0_", paramVal[[seed]],".Rda.bz2", sep=""), 
+	    save(simResults, file=paste("./simLgSamp_results_0_", paramVal[["seed"]],".Rda.bz2", sep=""), 
 		 compress="bzip2")
 	    stopCluster(cl)
 	    TRUE
