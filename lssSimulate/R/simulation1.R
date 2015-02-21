@@ -304,6 +304,7 @@ simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYe
         cat("Not converged, adding iterations...\n")
         parLapply(cl, iterationParams, additionalIterations)
         conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3], maxVal = 1.02)
+        if (is.na(conv)){conv = FALSE;}
     }
 
     dat1 = read.csv(fileNames[1])
