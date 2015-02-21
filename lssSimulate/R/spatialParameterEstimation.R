@@ -56,7 +56,7 @@ runSimulationSpatialEstimation = function(cellIterations = 50,
                                           ){
     seeds = genSeed + 100*seq(1, cellIterations)
     params = lapply(seeds, function(x){list(seed = x, nTpt=nTpt, population=population, rho=rho)})
-    main.cluster = makeCluster(1)
+    main.cluster = makeCluster(2)
     clusterExport(main.cluster, c("fitSeeds", "buildSmSampSimInstance", 
 				"simulationSmSampKernel"), envir = environment())
     outer.loop = function(paramVal){
@@ -69,7 +69,7 @@ runSimulationSpatialEstimation = function(cellIterations = 50,
             spatialEstimationKernel(paramVals,cl)
 	    }
 	    simResults = f(paramVal) 
-	    save(simResults, file=paste("./simLgSamp_results_0_", paramVal[[seed]],".Rda.bz2", sep=""), 
+	    save(simResults, file=paste("./simLgSamp_results_0_", paramVal[["seed"]],".Rda.bz2", sep=""), 
 		 compress="bzip2")
 	    stopCluster(cl)
 	    TRUE
