@@ -49,7 +49,7 @@ spatialEstimationKernel = function(params, cl)
 
 
 runSimulationSpatialEstimation = function(cellIterations = 50, 
-                                          nTpt = 50, rho = c(0.56, 1, 2), 
+                                          nTpt = 50, rho = c(0.1, 0.25, 0.5), 
                                           population = rep(10000, 10),
                                           genSeed = 123123,
                                           fitSeeds=c(812123,12301,5923)
