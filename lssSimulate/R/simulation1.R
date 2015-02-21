@@ -288,8 +288,8 @@ simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYe
     simResults = generateSingleLocData(genSeed, population, NYears, TptPerYear, ThrowAwayTpt)
 
     fileNames = c(paste("sim1_1_", genSeed, ".txt", sep = ""),
-                  paste("sim1_1_", genSeed, ".txt", sep = ""),
-                  paste("sim1_1_", genSeed, ".txt", sep = ""))
+                  paste("sim1_2_", genSeed, ".txt", sep = ""),
+                  paste("sim1_3_", genSeed, ".txt", sep = ""))
 
     paramsList = list(list(seed=fitSeeds[1], outFileName = fileNames[1], simResults),
                       list(seed=fitSeeds[2], outFileName = fileNames[2], simResults),
