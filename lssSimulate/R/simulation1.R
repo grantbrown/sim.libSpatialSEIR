@@ -287,7 +287,10 @@ simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYe
     #TODO: Vary starting linear predictor parameters on each iteration 
     simResults = generateSingleLocData(genSeed, population, NYears, TptPerYear, ThrowAwayTpt)
 
-    fileNames = c("sim1_1.txt", "sim1_2.txt", "sim1_3.txt")
+    fileNames = c(paste("sim1_1_", genSeed, ".txt", sep = ""),
+                  paste("sim1_1_", genSeed, ".txt", sep = ""),
+                  paste("sim1_1_", genSeed, ".txt", sep = ""))
+
     paramsList = list(list(seed=fitSeeds[1], outFileName = fileNames[1], simResults),
                       list(seed=fitSeeds[2], outFileName = fileNames[2], simResults),
                       list(seed=fitSeeds[3], outFileName = fileNames[3], simResults)
