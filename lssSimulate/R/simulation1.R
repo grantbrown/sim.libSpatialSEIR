@@ -163,16 +163,14 @@ generateSingleLocData = function(seed,
     #Z = matrix(sin(2*pi*((1:maxTpt)/TptPerYear)), ncol = 1) 
     Z = cbind(seq(1, maxTpt), sin(seq(1, maxTpt)/TptPerYear*2*pi))
 
-    X_RS = matrix(1, nrow = maxTpt)
-
-
+    X_RS = matrix(dnorm(5*sin(seq(1, maxTpt)/TptPerYear*pi)), nrow = maxTpt)
 
     distMatList = -1   
     rho = -1
     gamma_ei = 2.3
     gamma_ir = 2.3
     
-    effectiveTransitionSampleSize = 100000
+    effectiveTransitionSampleSize = 1000
     timeIndex = 0:maxTpt
 
     generateData(seed + 1, 
@@ -212,9 +210,12 @@ buildSingleLocSimInstance = function(params)
 
     priorBetaIntercept = log(mean(-log(1-(simResults$I_star/(simResults$N))))) 
     ExposureModel = buildExposureModel_depricated(simResults$X, simResults$Z, 
-                                       beta = c(priorBetaIntercept, rep(0, ((length(simResults$beta_SE))-1))), betaPriorPrecision = 0.1)
+                                       beta = c(priorBetaIntercept, rep(0, ((length(simResults$beta_SE))-1))), 
+                                       betaPriorMean = rep(0, length(simResults$beta_SE)), 
+                                       betaPriorPrecision = 0.01)
     ReinfectionModel = buildReinfectionModel("SEIRS", X_prs = simResults$X_RS, 
-                                             betaPrs = -c(1, rep(0,(length(simResults$beta_RS)-1))), 
+                                             betaPrs = -c(0, rep(0,(length(simResults$beta_RS)-1))), 
+                                             priorMean = 0,
                                              priorPrecision = 0.1)
     SamplingControl = buildSamplingControl(iterationStride=1000,
                                            sliceWidths = c(0.26,  # S_star
@@ -233,6 +234,7 @@ buildSingleLocSimInstance = function(params)
     TransitionPriors = buildTransitionPriorsFromProbabilities(1-exp(-simResults$gamma_ei), 
                                                              1-exp(-simResults$gamma_ir), simResults$effectiveTransitionSampleSize,
                                                              simResults$effectiveTransitionSampleSize) 
+    TransitionPriors$summary()
 
     I0 = max(simResults$I_star[1], simResults$I_star[2], 100)
     E0 = I0
@@ -244,20 +246,20 @@ buildSingleLocSimInstance = function(params)
 
     res$setRandomSeed(seed)
     res$setTrace(0)
-    res$compartmentSamplingMode = 17
-    res$useDecorrelation = 50
-    res$performHybridStep = 50
     # Burn in tuning parameters
     for (i in 1:(200))
     {
         res$simulate(10)
         res$updateSamplingParameters(0.2, 0.05, 0.01)
     }
-    for (i in 1:(20))
+    for (i in 1:(200))
     {
         res$simulate(100)
         res$updateSamplingParameters(0.2, 0.05, 0.01)
     }
+    res$compartmentSamplingMode = 17
+    res$useDecorrelation = 50
+    res$performHybridStep = 50
 
     # Store the model object in the global namespace of the node - can't pass these between sessions
     localModelObject <<- res
@@ -301,10 +303,14 @@ simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYe
     {
         cat("Not converged, adding iterations...\n")
         parLapply(cl, iterationParams, additionalIterations)
-        conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3])
+        conv = checkConvergence(fileNames[1], fileNames[2], fileNames[3], maxVal = 1.02)
     }
 
-    computeSim1Results(fileNames[1], fileNames[2], fileNames[3], simResults)
+    dat1 = read.csv(fileNames[1])
+    dat2 = read.csv(fileNames[2])
+    dat3 = read.csv(fileNames[3])
+    list(dat1=dat1,dat2=dat2,dat3=dat3,simResults=simResults)
+    #computeSim1Results(fileNames[1], fileNames[2], fileNames[3], simResults)
 }
 
 computeSim1Results = function(fileName1, fileName2, fileName3, trueData)
@@ -441,36 +447,15 @@ runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
     {
         f = function(genSeed)
         {
-            simulation1Kernel(cl, genSeed, fitSeeds + genSeed, 100000, 3, 12, ThrowAwayTpt)
+            simulation1Kernel(cl, genSeed, fitSeeds + genSeed, 1000, 3, 12, ThrowAwayTpt)
         }
-        simResults = lapply(genSeed + seq(1, cellIterations), f)
-        biasResults = simResults[[1]]$params
-        compartmentResults = simResults[[1]]$compartments
-        timeResult = simResults[[1]]$time
-        iterationResult = simResults[[1]]$iterations
-        if (length(simResults) > 1)
-        {
-            for (i in 2:length(simResults))
-            {
-                biasResults = biasResults + simResults[[i]]$params
-                timeResult = timeResult + simResults[[i]]$time
-                iterationResult = iterationResult + simResults[[i]]$iterations
-                for (j in 1:4)
-                {
-                    compartmentResults[[j]] = compartmentResults[[j]] + (simResults[[i]]$compartmentResults)[[j]]
-                }
-            }
+        itrSeeds = genSeed + seq(1, cellIterations)
+        i = 1
+        for (itrSeed in itrSeeds){
+            result = f(itrSeed)
+            save(result, file = paste("./sim1_results_", ThrowAwayTpt, "_", i, ".Rda.bz2", sep = ""), compress="bzip2")
+            i = i+1
         }
-        biasResults = biasResults/length(simResults)
-        timeResult = timeResult/length(simResults)
-        iterationResult = iterationResult/length(simResults)
-        for (j in 1:4)
-        {
-            compartmentResults[[j]] = compartmentResults[[j]]/length(simResults)
-        }
-
-        outData = list(biasResults, timeResult, iterationResult, ThrowAwayTpt, compartmentResults)
-        save(outData, file=paste("./sim1_results_", ThrowAwayTpt, ".tmp", sep=""))
     }
     print("Results obtained")
     stopCluster(cl)
