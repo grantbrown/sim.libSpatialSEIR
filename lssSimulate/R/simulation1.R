@@ -214,7 +214,7 @@ buildSingleLocSimInstance = function(params)
                                        betaPriorMean = rep(0, length(simResults$beta_SE)), 
                                        betaPriorPrecision = 0.01)
     ReinfectionModel = buildReinfectionModel("SEIRS", X_prs = simResults$X_RS, 
-                                             betaPrs = -c(0, rep(0,(length(simResults$beta_RS)-1))), 
+                                             betaPrs = rep(0,(length(simResults$beta_RS))), 
                                              priorMean = 0,
                                              priorPrecision = 0.1)
     SamplingControl = buildSamplingControl(iterationStride=1000,
@@ -236,7 +236,7 @@ buildSingleLocSimInstance = function(params)
                                                              simResults$effectiveTransitionSampleSize) 
     TransitionPriors$summary()
 
-    I0 = max(simResults$I_star[1], simResults$I_star[2], 100)
+    I0 = max(simResults$I_star[1], simResults$I_star[2], 2)
     E0 = I0
     S0 = simResults$N[1] - I0 - E0
     InitContainer = buildInitialValueContainer(simResults$I_star, simResults$N, 
@@ -285,7 +285,14 @@ additionalIterations = function(params)
 simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYear, ThrowAwayTpt)
 {
     #TODO: Vary starting linear predictor parameters on each iteration 
-    simResults = generateSingleLocData(genSeed, population, NYears, TptPerYear, ThrowAwayTpt)
+    hasEpidemic = FALSE
+    i = 0
+    # make sure epidemic doesn't die out right away
+    while (!hasEpidemic){
+        simResults = generateSingleLocData(genSeed + i*100, population, NYears, TptPerYear, ThrowAwayTpt)
+        hasEpidemic = (sum(simResults$I_star) > 10)
+        i = i+1
+    }
 
     fileNames = c(paste("sim1_1_", genSeed, ".txt", sep = ""),
                   paste("sim1_2_", genSeed, ".txt", sep = ""),
@@ -449,6 +456,7 @@ runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
  
     for (ThrowAwayTpt in ThrowAwayTpts)
     {
+
         f = function(genSeed)
         {
             simulation1Kernel(cl, genSeed, fitSeeds + genSeed, 1000, 3, 12, ThrowAwayTpt)
@@ -456,8 +464,11 @@ runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
         itrSeeds = genSeed + seq(1, cellIterations)
         i = 1
         for (itrSeed in itrSeeds){
-            result = f(itrSeed)
-            save(result, file = paste("./sim1_results_", ThrowAwayTpt, "_", i, ".Rda.bz2", sep = ""), compress="bzip2")
+            outFileName = paste("./sim1_results_", ThrowAwayTpt, "_", i, ".Rda.bz2", sep = "")
+            if (!file.exists(outFileName)){
+                result = f(itrSeed)
+                save(result, file = outFileName, compress="bzip2")
+            }
             i = i+1
         }
     }
