@@ -152,7 +152,7 @@ generateSingleLocData = function(seed,
 {
     set.seed(seed)
     E0 = 0  
-    I0 = floor(0.001*population)
+    I0 = max(floor(0.001*population), 1)
     R0 = I0
     S0 = population - R0 - E0 - I0
 
@@ -292,6 +292,9 @@ simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYe
         simResults = generateSingleLocData(genSeed + i*100, population, NYears, TptPerYear, ThrowAwayTpt)
         hasEpidemic = (sum(simResults$I_star) > 10)
         i = i+1
+        if (i > 100){
+            stop("Couldn't generate an epidemic with at least 10 infections.")
+        }
     }
 
     fileNames = c(paste("sim1_1_", genSeed, ".txt", sep = ""),
@@ -447,7 +450,8 @@ computeSim1Results = function(fileName1, fileName2, fileName3, trueData)
 }
 
 runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
-                          genSeed=123123, fitSeeds=c(812123,12301,5923))
+                          genSeed=123123, fitSeeds=c(812123,12301,5923),
+                          N = 1000)
 {                     
     cl = makeCluster(3, outfile = "err.txt")
     print("Cluster Created")
@@ -459,7 +463,7 @@ runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
 
         f = function(genSeed)
         {
-            simulation1Kernel(cl, genSeed, fitSeeds + genSeed, 1000, 3, 12, ThrowAwayTpt)
+            simulation1Kernel(cl, genSeed, fitSeeds + genSeed, N, 3, 12, ThrowAwayTpt)
         }
         itrSeeds = genSeed + seq(1, cellIterations)
         i = 1
