@@ -176,7 +176,7 @@ generateSingleLocData = function(seed,
         timeIndex = 0:maxTpt
     }
     else if (TptPerYear == 52){
-        timeIndex = 0:maxTpt*(11/51)
+        timeIndex = 0:maxTpt*(12/52)
     }
     else{
         stop("This code needs to be more general")
