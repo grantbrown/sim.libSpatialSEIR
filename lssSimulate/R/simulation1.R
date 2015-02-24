@@ -171,7 +171,16 @@ generateSingleLocData = function(seed,
     gamma_ir = 2.3
     
     effectiveTransitionSampleSize = 1000
-    timeIndex = 0:maxTpt
+    # TODO: Make this cleaner.
+    if (TptPerYear == 12){
+        timeIndex = 0:maxTpt
+    }
+    else if (TptPerYear == 52){
+        timeIndex = 0:maxTpt*(11/51)
+    }
+    else{
+        stop("This code needs to be more general")
+    }
 
     generateData(seed + 1, 
                  nTpt,
