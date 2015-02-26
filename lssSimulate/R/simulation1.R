@@ -291,14 +291,14 @@ additionalIterations = function(params)
     }
 }
 
-simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYear, ThrowAwayTpt)
+simulation1Kernel = function(cl, genSeed, fitSeeds, population, NYears, TptPerYear, ThrowAwayTpt, beta_RS = -2.5)
 {
     #TODO: Vary starting linear predictor parameters on each iteration 
     hasEpidemic = FALSE
     i = 0
     # make sure epidemic doesn't die out right away
     while (!hasEpidemic){
-        simResults = generateSingleLocData(genSeed + i*100, population, NYears, TptPerYear, ThrowAwayTpt)
+        simResults = generateSingleLocData(genSeed + i*100, population, NYears, TptPerYear, ThrowAwayTpt, beta_RS=beta_RS)
         hasEpidemic = (sum(simResults$I_star) > 10)
         i = i+1
         if (i > 100){
@@ -460,7 +460,7 @@ computeSim1Results = function(fileName1, fileName2, fileName3, trueData)
 
 runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
                           genSeed=123123, fitSeeds=c(812123,12301,5923),
-                          N = 1000, NYears = 3, TptPerYear = 12)
+                          N = 1000, NYears = 3, TptPerYear = 12, beta_RS=-2.5)
 {                     
     cl = makeCluster(3, outfile = "err.txt")
     print("Cluster Created")
@@ -472,7 +472,7 @@ runSimulation1 = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
 
         f = function(genSeed)
         {
-            simulation1Kernel(cl, genSeed, fitSeeds + genSeed, N, NYears, TptPerYear, ThrowAwayTpt)
+            simulation1Kernel(cl, genSeed, fitSeeds + genSeed, N, NYears, TptPerYear, ThrowAwayTpt, beta_RS=beta_RS)
         }
         itrSeeds = genSeed + seq(1, cellIterations)
         i = 1
