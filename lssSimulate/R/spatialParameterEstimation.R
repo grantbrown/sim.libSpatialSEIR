@@ -17,7 +17,6 @@ spatialEstimationKernel = function(params, cl)
     
     simResults = generateMultiLocData(genSeed, nTpt = nTpt, rho=rho, population = population, DM=dmList)
 
-
     fileNames = c(paste("sim2_1_", genSeed, ".txt", sep = ""),
 		  paste("sim2_2_", genSeed, ".txt", sep = ""),
 		  paste("sim2_3_", genSeed, ".txt", sep = ""))
@@ -60,21 +59,25 @@ runSimulationSpatialEstimation = function(cellIterations = 50,
     clusterExport(main.cluster, c("fitSeeds", "buildSmSampSimInstance", 
 				"simulationSmSampKernel"), envir = environment())
     outer.loop = function(paramVal){
+	    fname = paste("./simLgSamp_results_0_", paramVal[["seed"]],".Rda.bz2", sep="")
+	    if (file.exists(fname)){
+	    	return(FALSE)
+	    }
 	    library(lssSimulate)
 	    cl = makeCluster(3, outfile = "err.txt")
 	    clusterExport(cl, c("fitSeeds", "buildSmSampSimInstance"), envir=environment()) 
 	    f = function(paramVals)
 	    {
     		library(lssSimulate)
-            spatialEstimationKernel(paramVals,cl)
+	        spatialEstimationKernel(paramVals,cl)
 	    }
 	    simResults = f(paramVal) 
-	    save(simResults, file=paste("./simLgSamp_results_0_", paramVal[["seed"]],".Rda.bz2", sep=""), 
+	    save(simResults, file=fname, 
 		 compress="bzip2")
 	    stopCluster(cl)
 	    TRUE
    }
-   parLapply(main.cluster, params, outer.loop)	
+   parLapplyLB(main.cluster, params, outer.loop)	
    stopCluster(main.cluster)
 }
 

@@ -23,6 +23,7 @@ generateMultiLocData = function(seed,
 
     # Use overall spatial correlation parameter
     if (length(DM) == 1 && is.na(DM)){
+	print("Creating Distance Matrix")
         distMatList = list((1-diag(length(N)))/length(N)) 
     }
     else{
@@ -61,7 +62,8 @@ generateMultiLocData = function(seed,
                                     population,
                                     beta_SE,
                                     rho,
-                                    beta_RS))
+                                    beta_RS,
+				    DM=DM))
     }
     else{
 	return(out)

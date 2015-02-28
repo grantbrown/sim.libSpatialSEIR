@@ -138,7 +138,8 @@ generateData = function(seed,
                 p_EI=p_EI,
                 p_IR=p_IR,
                 p_RS=p_RS,
-                effectiveTransitionSampleSize=effectiveTransitionSampleSize
+                effectiveTransitionSampleSize=effectiveTransitionSampleSize,
+		rho=rho
                 ))
 }
 
