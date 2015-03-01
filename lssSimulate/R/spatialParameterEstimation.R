@@ -6,6 +6,7 @@ spatialEstimationKernel = function(params, cl)
     nTpt = params$nTpt
     population = params$population
     rho = params$rho;
+    beta_SE = params$beta_SE
     if (length(rho) != 3){
         stop("rho is of length 3 for this simulation")
     }
@@ -15,7 +16,8 @@ spatialEstimationKernel = function(params, cl)
     DM3 = 0*DM1; DM3[idx[3], idx[4]] = 1; DM3[idx[4], idx[3]] = 1
     dmList = list(DM1, DM2, DM3)
     
-    simResults = generateMultiLocData(genSeed, nTpt = nTpt, rho=rho, population = population, DM=dmList)
+    simResults = generateMultiLocData(genSeed, nTpt = nTpt, rho=rho, population = population, DM=dmList,
+                                      beta_SE=beta_SE)
 
     fileNames = c(paste("sim2_1_", genSeed, ".txt", sep = ""),
 		  paste("sim2_2_", genSeed, ".txt", sep = ""),
@@ -51,10 +53,12 @@ runSimulationSpatialEstimation = function(cellIterations = 50,
                                           nTpt = 50, rho = c(0.1, 0.25, 0.5), 
                                           population = rep(10000, 10),
                                           genSeed = 123123,
-                                          fitSeeds=c(812123,12301,5923)
+                                          fitSeeds=c(812123,12301,5923),
+                                          beta_SE=-1
                                           ){
     seeds = genSeed + 100*seq(1, cellIterations)
-    params = lapply(seeds, function(x){list(seed = x, nTpt=nTpt, population=population, rho=rho)})
+    params = lapply(seeds, function(x){list(seed = x, nTpt=nTpt, population=population, rho=rho,
+                                            beta_SE=beta_SE)})
     main.cluster = makeCluster(2)
     clusterExport(main.cluster, c("fitSeeds", "buildSmSampSimInstance", 
 				"simulationSmSampKernel"), envir = environment())
