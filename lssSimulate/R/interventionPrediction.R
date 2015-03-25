@@ -95,7 +95,9 @@ simulationIntPredKernel = function(cl, genSeed, fitSeeds, ThrowAwayTpt, beta_SE)
 {
     simResults = generateSingleLocData2_noInt(genSeed, ThrowAwayTpt=ThrowAwayTpt, beta_SE=beta_SE)
 
-    fileNames = c("sim2_1.txt", "sim2_2.txt", "sim2_3.txt")
+    fileNames = c(paste("sim", genSeed, "_1.txt", sep=""),
+		  paste("sim", genSeed, "_2.txt",sep="" ),
+		  paste("sim", genSeed,"_3.txt", sep=""))
     paramsList = list(list(seed=fitSeeds[1], outFileName = fileNames[1], simResults),
                       list(seed=fitSeeds[2], outFileName = fileNames[2], simResults),
                       list(seed=fitSeeds[3], outFileName = fileNames[3], simResults))
