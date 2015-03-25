@@ -192,7 +192,7 @@ runSimulationIntPred = function(cellIterations = 50, ThrowAwayTpts=c(0,6,12,24),
 {                     
 
     seeds = genSeed + 100*seq(1, cellIterations)
-    main.cluster = makeCluster(1)
+    main.cluster = makeCluster(2)
     # simulationIntPredKernel(cl, genSeed, fitSeeds, ThrowAwayTpt, beta_SE)
 
     clusterExport(main.cluster, c("fitSeeds", "cellIterations", "buildSingleLocSimInstanceIntPred", 
