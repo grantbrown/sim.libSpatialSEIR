@@ -113,8 +113,8 @@ buildSmSampSimInstance = function(params)
 
     set.seed(seed)
 
-    DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(500,100))
-    #DataModel = buildDataModel(simResults$I_star, type = "identity")
+    #DataModel = buildDataModel(simResults$I_star, type = "overdispersion", params = c(500,100))
+    DataModel = buildDataModel(simResults$I_star, type = "identity")
 
 
     priorBetaIntercept = log(mean(-log(1-(simResults$I_star/(simResults$N))))) 
